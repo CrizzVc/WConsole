@@ -1,0 +1,2 @@
+iniciar aplicacion:
+1. npm run electron:dev
