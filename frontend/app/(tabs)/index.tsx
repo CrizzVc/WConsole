@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput, Button } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import GameDetailView from '@/components/GameDetailView';
 
 const TABS = ['Games', 'Media', 'eShop'];
 
-interface ConsoleItem {
+export interface ConsoleItem {
   id: string;
   title: string;
   time: string;
   image?: any;
+  logo?: any;
+  backgroundImage?: any;
+  video?: any;
   isFolder?: boolean;
   isGrid?: boolean;
   path?: string;
@@ -80,8 +84,13 @@ export default function ConsoleHome() {
             id: g.id,
             title: g.title,
             time: 'Custom App',
-            image: g.imageBase64 ? { uri: g.imageBase64 } : { uri: `local-file://${g.image}` },
-            path: g.path
+            image: g.imageBase64 ? { uri: g.imageBase64 } : (g.image ? { uri: `local-file:///${g.image.replace(/\\/g, '/')}` } : null),
+            logo: g.logoBase64 ? { uri: g.logoBase64 } : (g.logo ? { uri: `local-file:///${g.logo.replace(/\\/g, '/')}` } : null),
+            backgroundImage: g.backgroundImageBase64 ? { uri: g.backgroundImageBase64 } : (g.backgroundImage ? { uri: `local-file:///${g.backgroundImage.replace(/\\/g, '/')}` } : null),
+            video: g.video ? { uri: `local-file:///${g.video.replace(/\\/g, '/')}` } : null,
+            path: g.path,
+            description: g.description,
+            rating: g.rating
           }));
           setGames([...DATA_GAMES, ...formattedGames]);
         }
@@ -90,8 +99,12 @@ export default function ConsoleHome() {
             id: m.id,
             title: m.title,
             time: 'Custom Media',
-            image: m.imageBase64 ? { uri: m.imageBase64 } : { uri: `local-file://${m.image}` },
-            path: m.path
+            image: m.imageBase64 ? { uri: m.imageBase64 } : (m.image ? { uri: `local-file://${m.image}` } : null),
+            backgroundImage: m.backgroundImageBase64 ? { uri: m.backgroundImageBase64 } : (m.backgroundImage ? { uri: `local-file://${m.backgroundImage}` } : null),
+            video: m.video ? { uri: `local-file://${m.video}` } : null,
+            path: m.path,
+            description: m.description,
+            rating: m.rating
           }));
           setMedia([...DATA_MEDIA, ...formattedMedia]);
         }
@@ -332,52 +345,17 @@ export default function ConsoleHome() {
         </View>
       </View>
 
-      {/* GAME DETAIL VIEW */}
-      <Modal visible={isDetailVisible} transparent={false} animationType="fade" onRequestClose={() => setDetailVisible(false)}>
-        <View style={styles.detailContainer}>
-          {selectedItem?.image && (
-            <Image source={selectedItem.image} style={styles.detailBg} />
-          )}
-          <View style={styles.detailOverlay}>
-            <TouchableOpacity style={styles.detailBack} onPress={() => setDetailVisible(false)}>
-              <Ionicons name="arrow-back-outline" size={28} color="#FFF" />
-            </TouchableOpacity>
-            <View style={styles.detailContent}>
-              <View style={styles.detailLeft}>
-                {selectedItem?.image && (
-                  <Image source={selectedItem.image} style={styles.detailCover} />
-                )}
-              </View>
-              <View style={styles.detailRight}>
-                <Text style={styles.detailTitle}>{selectedItem?.title}</Text>
-                <View style={styles.detailActions}>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={() => {
-                      if (selectedItem?.path && Platform.OS === 'web' && (window as any).electronAPI) {
-                        (window as any).electronAPI.launchApp(selectedItem.path);
-                      }
-                    }}
-                  >
-                    <Ionicons name="play" size={18} color="#FFF" />
-                    <Text style={styles.playButtonText}>inicio</Text>
-                  </TouchableOpacity>
-                  <View style={styles.ratingContainer}>
-                    <Ionicons name="star-outline" size={22} color="#FFD700" />
-                    <Text style={styles.ratingText}>{selectedItem?.rating?.toFixed(1) ?? '5.0'}</Text>
-                  </View>
-                </View>
-                <Text style={styles.detailDescription}>
-                  {selectedItem?.description ?? 'Disfruta de esta increíble experiencia de juego.'}
-                </Text>
-                {selectedItem?.image && (
-                  <Image source={selectedItem.image} style={styles.detailScreenshot} />
-                )}
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <GameDetailView
+        isVisible={isDetailVisible}
+        item={selectedItem}
+        onClose={() => setDetailVisible(false)}
+        onRefresh={loadApps}
+        onLaunch={(path) => {
+          if (Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.launchApp(path);
+          }
+        }}
+      />
 
       {/* MODAL TO ADD APP */}
       <Modal visible={isAddModalVisible} transparent animationType="slide">
@@ -500,21 +478,4 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#FFF', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 12, backgroundColor: '#00FFFF', borderRadius: 8, marginLeft: 5, alignItems: 'center' },
   saveBtnText: { color: '#000', fontWeight: 'bold' },
-  // Detail view
-  detailContainer: { flex: 1, backgroundColor: '#000' },
-  detailBg: { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.35 },
-  detailOverlay: { flex: 1, backgroundColor: 'rgba(10,10,20,0.72)' },
-  detailBack: { position: 'absolute', top: 24, left: 28, zIndex: 20, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 22 },
-  detailContent: { flex: 1, flexDirection: 'row', paddingHorizontal: 55, paddingBottom: 60, alignItems: 'flex-end' },
-  detailLeft: { flex: 1, justifyContent: 'flex-end', marginRight: 45 },
-  detailCover: { width: 280, height: 170, borderRadius: 14, resizeMode: 'cover', borderWidth: 2, borderColor: 'rgba(0,255,255,0.3)' },
-  detailRight: { width: 340, justifyContent: 'flex-end' },
-  detailTitle: { color: '#FFF', fontSize: 26, fontWeight: 'bold', marginBottom: 18, letterSpacing: 0.4 },
-  detailActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  playButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8, marginRight: 22 },
-  playButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 10 },
-  ratingContainer: { flexDirection: 'row', alignItems: 'center' },
-  ratingText: { color: '#FFD700', fontSize: 22, fontWeight: 'bold', marginLeft: 7 },
-  detailDescription: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 21, marginBottom: 18 },
-  detailScreenshot: { width: '100%', height: 185, borderRadius: 12, resizeMode: 'cover', backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
 });
