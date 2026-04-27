@@ -12,21 +12,23 @@ interface ConsoleItem {
   isFolder?: boolean;
   isGrid?: boolean;
   path?: string;
+  description?: string;
+  rating?: number;
 }
 
 const DATA_GAMES: ConsoleItem[] = [
-  { id: '1', title: 'STARS', time: 'TODAY 1.2 H - TOTAL 5.4 H', image: require('@/assets/images/game_dark.png') },
-  { id: '2', title: 'Pokémon Legends: Arceus', time: 'TODAY 2.3 H - TOTAL 17.9 H', image: require('@/assets/images/game_adventure.png') },
+  { id: '1', title: 'STARS', time: 'TODAY 1.2 H - TOTAL 5.4 H', image: require('@/assets/images/game_dark.png'), description: 'Un oscuro y atmosférico juego de acción. Enfrenta criaturas del abismo en un mundo de sombras donde cada decisión puede cambiar tu destino para siempre.', rating: 4.8 },
+  { id: '2', title: 'Pokémon Legends: Arceus', time: 'TODAY 2.3 H - TOTAL 17.9 H', image: require('@/assets/images/game_adventure.png'), description: 'Explora la antigua región de Hisui en este innovador juego de acción-RPG. Captura, estudia y lucha con Pokémon como nunca antes en la historia de la saga.', rating: 4.9 },
   { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
-  { id: '5', title: 'ENCODYA', time: 'TODAY 0.5 H - TOTAL 2.1 H', image: require('@/assets/images/game_cyberpunk.png') },
+  { id: '5', title: 'ENCODYA', time: 'TODAY 0.5 H - TOTAL 2.1 H', image: require('@/assets/images/game_cyberpunk.png'), description: 'Una aventura gráfica de ciencia ficción ambientada en el Neo-Berlín de 2062. Sigue a Tina y su robot SAM-53 en una historia emotiva y llena de humor.', rating: 4.5 },
 ];
 
 const DATA_MEDIA: ConsoleItem[] = [
-  { id: 'm1', title: 'Twitch', time: 'App - Ver directos', image: require('@/assets/images/game_dark.png') },
-  { id: 'm2', title: 'Netflix', time: 'App - Películas y Series', image: require('@/assets/images/game_adventure.png') },
-  { id: 'm3', title: 'Spotify', time: 'App - Música', image: require('@/assets/images/game_cyberpunk.png') },
-  { id: 'm4', title: 'Disney+', time: 'App - Entretenimiento', image: require('@/assets/images/game_dark.png') },
+  { id: 'm1', title: 'Twitch', time: 'App - Ver directos', image: require('@/assets/images/game_dark.png'), description: 'La plataforma líder de streaming en vivo. Sigue a tus streamers favoritos y disfruta de gaming, música y mucho más en tiempo real.', rating: 4.7 },
+  { id: 'm2', title: 'Netflix', time: 'App - Películas y Series', image: require('@/assets/images/game_adventure.png'), description: 'Miles de películas, series y documentales. Disfruta del mejor entretenimiento cuando y donde quieras, con calidad 4K y sonido espacial.', rating: 4.8 },
+  { id: 'm3', title: 'Spotify', time: 'App - Música', image: require('@/assets/images/game_cyberpunk.png'), description: 'Millones de canciones y podcasts. Descubre nueva música, crea listas de reproducción y disfruta del audio de alta calidad sin interrupciones.', rating: 4.6 },
+  { id: 'm4', title: 'Disney+', time: 'App - Entretenimiento', image: require('@/assets/images/game_dark.png'), description: 'El hogar de Disney, Pixar, Marvel, Star Wars y National Geographic. Magia sin límites para toda la familia en una sola plataforma.', rating: 4.7 },
 ];
 
 export default function ConsoleHome() {
@@ -46,6 +48,10 @@ export default function ConsoleHome() {
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [newApp, setNewApp] = useState({ title: '', path: '', image: '', type: 'game' });
+
+  // States for Game Detail View
+  const [isDetailVisible, setDetailVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ConsoleItem | null>(null);
 
   const currentData = activeTab === 'Games' ? games : (activeTab === 'Media' ? media : []);
 
@@ -99,10 +105,19 @@ export default function ConsoleHome() {
 
   // Keyboard Navigation Listener
   useEffect(() => {
-    if (Platform.OS === 'web' && !isAddModalVisible) {
+    if (Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
+        // Detail view controls
+        if (isDetailVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setDetailVisible(false);
+          } else if (e.key === 'Enter' && selectedItem?.path && (window as any).electronAPI) {
+            (window as any).electronAPI.launchApp(selectedItem.path);
+          }
+          return;
+        }
+        if (isAddModalVisible) return;
         const dataLength = currentData.length;
-
         if (e.key === 'q' || e.key === 'Q') {
           setActiveTab((prev) => {
             const idx = TABS.indexOf(prev);
@@ -121,15 +136,16 @@ export default function ConsoleHome() {
           setActiveIndex((prev) => Math.max(prev - 1, 0));
         } else if (e.key === 'Enter') {
           const item = currentData[activeIndex];
-          if (item && item.path && Platform.OS === 'web' && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(item.path);
+          if (item && !item.isFolder && !item.isGrid) {
+            setSelectedItem(item);
+            setDetailVisible(true);
           }
         }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [activeTab, currentData, activeIndex, isAddModalVisible]);
+  }, [activeTab, currentData, activeIndex, isAddModalVisible, isDetailVisible, selectedItem]);
 
   // Auto-scroll: with dynamic padding the active item always lands at the screen center
   useEffect(() => {
@@ -141,8 +157,9 @@ export default function ConsoleHome() {
 
   const handleAppPress = (index: number, item: ConsoleItem) => {
     if (activeIndex === index) {
-      if (item.path && Platform.OS === 'web' && (window as any).electronAPI) {
-        (window as any).electronAPI.launchApp(item.path);
+      if (!item.isFolder && !item.isGrid) {
+        setSelectedItem(item);
+        setDetailVisible(true);
       }
     } else {
       setActiveIndex(index);
@@ -315,12 +332,59 @@ export default function ConsoleHome() {
         </View>
       </View>
 
+      {/* GAME DETAIL VIEW */}
+      <Modal visible={isDetailVisible} transparent={false} animationType="fade" onRequestClose={() => setDetailVisible(false)}>
+        <View style={styles.detailContainer}>
+          {selectedItem?.image && (
+            <Image source={selectedItem.image} style={styles.detailBg} />
+          )}
+          <View style={styles.detailOverlay}>
+            <TouchableOpacity style={styles.detailBack} onPress={() => setDetailVisible(false)}>
+              <Ionicons name="arrow-back-outline" size={28} color="#FFF" />
+            </TouchableOpacity>
+            <View style={styles.detailContent}>
+              <View style={styles.detailLeft}>
+                {selectedItem?.image && (
+                  <Image source={selectedItem.image} style={styles.detailCover} />
+                )}
+              </View>
+              <View style={styles.detailRight}>
+                <Text style={styles.detailTitle}>{selectedItem?.title}</Text>
+                <View style={styles.detailActions}>
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={() => {
+                      if (selectedItem?.path && Platform.OS === 'web' && (window as any).electronAPI) {
+                        (window as any).electronAPI.launchApp(selectedItem.path);
+                      }
+                    }}
+                  >
+                    <Ionicons name="play" size={18} color="#FFF" />
+                    <Text style={styles.playButtonText}>inicio</Text>
+                  </TouchableOpacity>
+                  <View style={styles.ratingContainer}>
+                    <Ionicons name="star-outline" size={22} color="#FFD700" />
+                    <Text style={styles.ratingText}>{selectedItem?.rating?.toFixed(1) ?? '5.0'}</Text>
+                  </View>
+                </View>
+                <Text style={styles.detailDescription}>
+                  {selectedItem?.description ?? 'Disfruta de esta increíble experiencia de juego.'}
+                </Text>
+                {selectedItem?.image && (
+                  <Image source={selectedItem.image} style={styles.detailScreenshot} />
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* MODAL TO ADD APP */}
       <Modal visible={isAddModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Añadir Nueva Aplicación</Text>
-            
+
             <TextInput
               style={styles.input}
               placeholder="Nombre de la Aplicación"
@@ -435,5 +499,22 @@ const styles = StyleSheet.create({
   cancelBtn: { flex: 1, padding: 12, backgroundColor: '#555', borderRadius: 8, marginRight: 5, alignItems: 'center' },
   cancelBtnText: { color: '#FFF', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 12, backgroundColor: '#00FFFF', borderRadius: 8, marginLeft: 5, alignItems: 'center' },
-  saveBtnText: { color: '#000', fontWeight: 'bold' }
+  saveBtnText: { color: '#000', fontWeight: 'bold' },
+  // Detail view
+  detailContainer: { flex: 1, backgroundColor: '#000' },
+  detailBg: { position: 'absolute', width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.35 },
+  detailOverlay: { flex: 1, backgroundColor: 'rgba(10,10,20,0.72)' },
+  detailBack: { position: 'absolute', top: 24, left: 28, zIndex: 20, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 22 },
+  detailContent: { flex: 1, flexDirection: 'row', paddingHorizontal: 55, paddingBottom: 60, alignItems: 'flex-end' },
+  detailLeft: { flex: 1, justifyContent: 'flex-end', marginRight: 45 },
+  detailCover: { width: 280, height: 170, borderRadius: 14, resizeMode: 'cover', borderWidth: 2, borderColor: 'rgba(0,255,255,0.3)' },
+  detailRight: { width: 340, justifyContent: 'flex-end' },
+  detailTitle: { color: '#FFF', fontSize: 26, fontWeight: 'bold', marginBottom: 18, letterSpacing: 0.4 },
+  detailActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  playButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8, marginRight: 22 },
+  playButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 10 },
+  ratingContainer: { flexDirection: 'row', alignItems: 'center' },
+  ratingText: { color: '#FFD700', fontSize: 22, fontWeight: 'bold', marginLeft: 7 },
+  detailDescription: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 21, marginBottom: 18 },
+  detailScreenshot: { width: '100%', height: 185, borderRadius: 12, resizeMode: 'cover', backgroundColor: '#111', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
 });
