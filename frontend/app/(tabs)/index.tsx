@@ -33,7 +33,10 @@ export default function ConsoleHome() {
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef<ScrollView>(null);
-  const ITEM_WIDTH = 220 + (8 * 2);
+  const { width: windowWidth } = Dimensions.get('window');
+  const ITEM_WIDTH = 220 + (8 * 2); // card width + horizontal margins
+  const LEFT_PADDING = 50; // fixed left anchor position
+  const RIGHT_PADDING = windowWidth - ITEM_WIDTH - LEFT_PADDING; // allows last item to reach left anchor
 
   // States for dynamic data and clock
   const [games, setGames] = useState<ConsoleItem[]>(DATA_GAMES);
@@ -128,16 +131,13 @@ export default function ConsoleHome() {
     }
   }, [activeTab, currentData, activeIndex, isAddModalVisible]);
 
-  // Auto-scroll
+  // Auto-scroll: with dynamic padding the active item always lands at the screen center
   useEffect(() => {
     if (scrollRef.current) {
-      const windowWidth = Dimensions.get('window').width;
-      const paddingLeft = 40;
-      const itemCenter = paddingLeft + (activeIndex * ITEM_WIDTH) + (ITEM_WIDTH / 2);
-      const scrollX = itemCenter - (windowWidth / 2);
-      scrollRef.current.scrollTo({ x: Math.max(0, scrollX), animated: true });
+      const scrollX = activeIndex * ITEM_WIDTH;
+      scrollRef.current.scrollTo({ x: scrollX, animated: true });
     }
-  }, [activeIndex, activeTab]);
+  }, [activeIndex, activeTab, ITEM_WIDTH]);
 
   const handleAppPress = (index: number, item: ConsoleItem) => {
     if (activeIndex === index) {
@@ -220,7 +220,7 @@ export default function ConsoleHome() {
             ref={scrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
           >
             {currentData.map((item, index) => {
               const isActive = index === activeIndex;
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   cartridgeIcon: { width: 12, height: 16, backgroundColor: '#00FFFF', marginRight: 10, borderRadius: 2 },
   activeTitle: { color: '#00FFFF', fontSize: 22, fontWeight: '300', letterSpacing: 0.5 },
   carouselWrapper: { height: 250 },
-  scrollContent: { paddingHorizontal: 40, alignItems: 'center' },
+  // scrollContent padding is applied inline via HORIZONTAL_PADDING (dynamic, not in StyleSheet)
   cardBase: { width: 220, height: 220, borderRadius: 12, marginHorizontal: 8, borderWidth: 4, borderColor: 'transparent' },
   cardActive: { borderColor: '#00FFFF', transform: [{ scale: 1.08 }], zIndex: 10 },
   cardImage: { resizeMode: 'cover' },
