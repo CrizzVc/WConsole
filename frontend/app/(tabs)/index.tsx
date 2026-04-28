@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Platform, Modal, TextInput, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GameDetailView from '@/components/GameDetailView';
 import FavoritesView from '@/components/FavoritesView';
@@ -85,6 +85,17 @@ export default function ConsoleHome() {
   const [bgB, setBgB] = useState<any>(null);
   const [activeLayer, setActiveLayer] = useState<'A' | 'B'>('A');
   const fade = useSharedValue(0);
+  const tabFade = useSharedValue(1);
+
+  useEffect(() => {
+    tabFade.value = 0;
+    tabFade.value = withTiming(1, { duration: 400 });
+  }, [activeTab]);
+
+  const animatedTabContentStyle = useAnimatedStyle(() => ({
+    opacity: tabFade.value,
+    transform: [{ translateY: interpolate(tabFade.value, [0, 1], [15, 0]) }]
+  }));
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -504,16 +515,25 @@ export default function ConsoleHome() {
         <View style={styles.headerCenter}>
           <View style={styles.lrButton}><Text style={styles.lrText}>L</Text></View>
           {TABS.map((tab, idx) => (
-            <Text
+            <TouchableOpacity
               key={tab}
-              style={[
-                styles.navItem,
-                activeTab === tab && styles.navItemActive,
-                (focusArea === 'header_tabs' && focusIndex === idx) && styles.tabFocused
-              ]}
+              onPress={() => {
+                setActiveTab(tab);
+                setActiveIndex(0);
+                setFocusArea('main_carousel');
+              }}
+              activeOpacity={0.7}
             >
-              {tab}
-            </Text>
+              <Text
+                style={[
+                  styles.navItem,
+                  activeTab === tab && styles.navItemActive,
+                  (focusArea === 'header_tabs' && focusIndex === idx) && styles.tabFocused
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
           ))}
           <View style={styles.lrButton}><Text style={styles.lrText}>R</Text></View>
         </View>
@@ -527,7 +547,7 @@ export default function ConsoleHome() {
       </View>
 
       {/* MAIN CONTENT */}
-      <View style={styles.mainContent}>
+      <Animated.View style={[styles.mainContent, animatedTabContentStyle]}>
         <View style={styles.activeTitleContainer}>
           <View style={styles.cartridgeIcon} />
           <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>
@@ -697,7 +717,7 @@ export default function ConsoleHome() {
             {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Jugado recientemente` : 'Ningún juego ejecutado') : currentData[activeIndex]?.time}
           </Text>
         </View>
-      </View>
+      </Animated.View>
 
       {/* BOTTOM NEWS ROW */}
       <View style={styles.newsContainer}>
