@@ -1781,7 +1781,6 @@ const styles = StyleSheet.create({
   footerRight: { flexDirection: 'row', alignItems: 'center' },
   
   footerBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  footerBtnFocused: { backgroundColor: 'rgba(255,255,255,0.1)' },
   footerHint: { color: '#FFF', fontSize: 14, fontWeight: '500' },
   btnIcon: { color: '#00FFFF', fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
