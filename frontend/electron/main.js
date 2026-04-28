@@ -279,10 +279,10 @@ app.whenReady().then(() => {
 
 
       // 2. Buscar Grids (Portadas), Heroes (Fondos) y Logos en paralelo
-      // Filtramos por dimensiones para obtener grids cuadrados (1:1) y fondos panorámicos
+      // Quitamos filtros restrictivos de dimensiones para asegurar que siempre encuentre algo
       const [gridsRes, heroesRes, logosRes] = await Promise.all([
-        fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?dimensions=512x512,1024x1024&limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
-        fetch(`https://www.steamgriddb.com/api/v2/heroes/game/${gameId}?dimensions=1920x1080,2560x1440,3840x2160&limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
+        fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
+        fetch(`https://www.steamgriddb.com/api/v2/heroes/game/${gameId}?limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
         fetch(`https://www.steamgriddb.com/api/v2/logos/game/${gameId}?limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } })
       ]);
 
