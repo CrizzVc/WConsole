@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { ConsoleItem } from '../app/(tabs)/index';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
+import ControlPrompt from './ControlPrompt';
 
 interface FavoritesViewProps {
   isVisible: boolean;
@@ -12,6 +13,7 @@ interface FavoritesViewProps {
   onClose: () => void;
   onLaunch: (item: ConsoleItem) => void;
   isLaunching?: boolean;
+  inputMode: 'keyboard' | 'gamepad';
 }
 
 const FavoriteItem: React.FC<{
@@ -63,7 +65,7 @@ const FavoriteItem: React.FC<{
     );
 };
 
-const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onClose, onLaunch, isLaunching }) => {
+const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onClose, onLaunch, isLaunching, inputMode }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -172,7 +174,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onClose} accessible={false}>
-            <Ionicons name="arrow-back" size={28} color="#FFF" />
+            <ControlPrompt btn="Back" label="" inputMode={inputMode} />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
              <Ionicons name="heart" size={24} color="#FF2D55" />
@@ -221,10 +223,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
         {/* GAME INFO */}
         <View style={styles.infoContainer}>
            <Text style={styles.activeGameTitle}>{favorites[activeIndex]?.title}</Text>
-           <View style={styles.launchHint}>
-              <View style={styles.btnIcon}><Text style={styles.btnText}>A</Text></View>
-              <Text style={styles.hintText}> Iniciar Juego</Text>
-           </View>
+           <ControlPrompt btn="A" label="Iniciar Juego" inputMode={inputMode} />
         </View>
 
         {/* FOOTER */}

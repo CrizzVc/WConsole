@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import YoutubePlayer from '@/components/YoutubePlayer';
 import GameDetailView from '@/components/GameDetailView';
 import FavoritesView from '@/components/FavoritesView';
+import ControlPrompt from '@/components/ControlPrompt';
 import { useUser } from '@/contexts/UserContext';
 import { Linking } from 'react-native';
 import { fetchGamingNews, NewsArticle } from '@/services/newsService';
@@ -36,8 +37,8 @@ export interface ConsoleItem {
 const DATA_GAMES: ConsoleItem[] = [
   { id: '1', title: 'Home', time: 'WConsole - Home', image: require('@/assets/images/Home.gif'), description: 'Bienvenido a tu consola personal. Accede a tus juegos y aplicaciones favoritas con una experiencia premium.', rating: 5.0, backgroundImage: require('@/assets/images/FondoDefault.png') },
   { id: 'last_played', title: 'Último Jugado', time: 'No ejecutado aún', image: require('@/assets/images/Home.gif'), isLastPlayed: true },
-  { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
-  { id: '4', title: 'Media Apps', time: '', isGrid: true },
+  { id: '3', title: 'Favoritos Juegos', time: 'Folder - Colección', isFolder: true },
+  { id: '4', title: 'Favoritos Media', time: 'Aplicaciones de Streaming', isGrid: true },
 ];
 
 const DATA_MEDIA: ConsoleItem[] = [];
@@ -100,6 +101,7 @@ export default function ConsoleHome() {
   const [bgB, setBgB] = useState<any>(null);
   const [activeLayer, setActiveLayer] = useState<'A' | 'B'>('A');
   const [showTrailer, setShowTrailer] = useState(false);
+  const [inputMode, setInputMode] = useState<'keyboard' | 'gamepad'>('keyboard');
   const fade = useSharedValue(0);
   const tabFade = useSharedValue(1);
 
@@ -202,7 +204,14 @@ export default function ConsoleHome() {
         const gamesList = (data.games || []).map(formatApp);
         const mediaList = (data.media || []).map(formatApp);
 
-        setGames([...DATA_GAMES.filter(g => g.id !== 'last_played' && !g.isFolder && !g.isGrid), ...gamesList.reverse(), ...DATA_GAMES.filter(g => g.id === 'last_played' || g.isFolder || g.isGrid)]);
+        const home = DATA_GAMES.find(g => g.id === '1');
+        const lastPlayed = DATA_GAMES.find(g => g.id === 'last_played');
+        const favGames = DATA_GAMES.find(g => g.id === '3');
+        const favMedia = DATA_GAMES.find(g => g.id === '4');
+
+        const baseItems = [home, lastPlayed, favGames, favMedia].filter(Boolean) as ConsoleItem[];
+
+        setGames([...baseItems, ...gamesList.reverse()]);
         setMedia([...DATA_MEDIA, ...mediaList.reverse()]);
 
         // Identificar el último juego jugado
@@ -247,12 +256,15 @@ export default function ConsoleHome() {
         const buttons = gp.buttons;
 
         const dispatch = (key: string) => {
-          window.dispatchEvent(new KeyboardEvent('keydown', { 
+          setInputMode('gamepad');
+          const event = new KeyboardEvent('keydown', { 
             key, 
             bubbles: true, 
             cancelable: true,
             keyCode: key === 'Enter' ? 13 : (key === 'ArrowRight' ? 39 : (key === 'ArrowLeft' ? 37 : (key === 'ArrowUp' ? 38 : (key === 'ArrowDown' ? 40 : 0))))
-          }));
+          });
+          (event as any).fromGamepad = true;
+          window.dispatchEvent(event);
         };
 
         // D-Pad Edge Detection
@@ -353,6 +365,7 @@ export default function ConsoleHome() {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
+        if (!e.fromGamepad) setInputMode('keyboard');
         if (isLaunching) return;
 
         // Si el usuario está escribiendo en un input o textarea, no interferimos con la navegación del sistema
@@ -738,6 +751,8 @@ export default function ConsoleHome() {
   const animatedStyleB = useAnimatedStyle(() => ({
     opacity: fade.value,
   }));
+
+
   return (
     <SafeAreaView style={styles.container}>
       {/* BACKGROUND DINÁMICO (Dual Layer Crossfade) */}
@@ -811,7 +826,7 @@ export default function ConsoleHome() {
         </View>
 
         <View style={styles.headerCenter}>
-          <View style={styles.lrButton}><Text style={styles.lrText}>L</Text></View>
+          <ControlPrompt btn="L" label="" inputMode={inputMode} />
           {TABS.map((tab, idx) => (
             <TouchableOpacity
               key={tab}
@@ -833,7 +848,7 @@ export default function ConsoleHome() {
               </Text>
             </TouchableOpacity>
           ))}
-          <View style={styles.lrButton}><Text style={styles.lrText}>R</Text></View>
+          <ControlPrompt btn="R" label="" inputMode={inputMode} />
         </View>
 
         <View style={styles.headerRight}>
@@ -1207,8 +1222,8 @@ export default function ConsoleHome() {
       {/* FOOTER CONTROLS */}
       <View style={styles.footer}>
         <View style={styles.footerLeft}>
-          <MaterialCommunityIcons name="nintendo-switch" size={24} color="#FFF" />
-          <Text style={styles.footerHint}><Ionicons name="apps" size={14} /> Explore</Text>
+          <MaterialCommunityIcons name="controller-classic" size={26} color="#FFF" />
+          <ControlPrompt btn="Explore" label="Explorar" inputMode={inputMode} />
         </View>
         <View style={styles.footerRight}>
           <TouchableOpacity
@@ -1220,10 +1235,10 @@ export default function ConsoleHome() {
             accessible={false}
             style={[styles.footerBtn, (focusArea === 'footer' && focusIndex === 0) && styles.footerBtnFocused]}
           >
-            <Text style={styles.footerHint}><Text style={styles.btnIcon}> + </Text> Añadir App</Text>
+            <ControlPrompt btn="Options" label="Añadir App" inputMode={inputMode} />
           </TouchableOpacity>
-          <Text style={styles.footerHint}><Text style={styles.btnIcon}> X </Text> Close Software</Text>
-          <Text style={styles.footerHint}><Text style={styles.btnIcon}> A </Text> Start/Select</Text>
+          <ControlPrompt btn="B" label="Cerrar" inputMode={inputMode} />
+          <ControlPrompt btn="A" label="Iniciar" inputMode={inputMode} />
         </View>
       </View>
 
@@ -1231,6 +1246,7 @@ export default function ConsoleHome() {
         isVisible={isDetailVisible}
         item={selectedItem}
         isLaunching={isLaunching}
+        inputMode={inputMode}
         onClose={() => setDetailVisible(false)}
         onRefresh={loadApps}
         onLaunch={(id, path) => {
@@ -1251,6 +1267,7 @@ export default function ConsoleHome() {
       <FavoritesView
         isVisible={isFavoritesVisible}
         isLaunching={isLaunching}
+        inputMode={inputMode}
         favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
         onLaunch={(item) => {
@@ -1638,8 +1655,6 @@ const styles = StyleSheet.create({
   avatar: { width: '100%', height: '100%' },
   iconButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#333', alignItems: 'center', justifyContent: 'center', marginLeft: 5 },
   headerCenter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '40%' },
-  lrButton: { borderWidth: 1, borderColor: '#666', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2, marginHorizontal: 15 },
-  lrText: { color: '#CCC', fontSize: 12, fontWeight: 'bold' },
   navItem: { color: '#888', fontSize: 16, marginHorizontal: 12, fontWeight: '600' },
   navItemActive: { color: '#FFF' },
   headerRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', width: '30%' },
@@ -1650,13 +1665,9 @@ const styles = StyleSheet.create({
   cartridgeIcon: { width: 12, height: 16, backgroundColor: '#00FFFF', marginRight: 10, borderRadius: 2 },
   activeTitle: { color: '#00FFFF', fontSize: 22, fontWeight: '300', letterSpacing: 0.5 },
   carouselWrapper: {},
-  // scrollContent padding is applied inline via HORIZONTAL_PADDING (dynamic, not in StyleSheet)
   cardBase: { borderRadius: 12, marginHorizontal: 8, borderWidth: 4, borderColor: 'transparent' },
   cardActive: { borderColor: '#00FFFF', transform: [{ scale: 1.08 }], zIndex: 10 },
   cardImage: { resizeMode: 'cover' },
-  gridContainer: { backgroundColor: '#111', padding: 6, justifyContent: 'space-between' },
-  gridRow: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, marginBottom: 6 },
-  gridItem: { flex: 1, borderRadius: 8, marginHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
   folderContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     padding: 15,
@@ -1675,35 +1686,6 @@ const styles = StyleSheet.create({
   folderEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-  newsContainer: { height: 160, justifyContent: 'center', marginTop: 10 },
-  newsHeaderContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 50, marginBottom: 10 },
-  newsSectionTitle: { color: '#00FFFF', fontSize: 10, fontWeight: 'bold', marginLeft: 6, letterSpacing: 1.5 },
-  newsScroll: { paddingHorizontal: 50, alignItems: 'center' },
-  newsCardPremium: {
-    width: 240,
-    height: 120,
-    borderRadius: 12,
-    marginRight: 15,
-    overflow: 'hidden',
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)'
-  },
-  newsImagePremium: { width: '100%', height: '100%', opacity: 0.6 },
-  newsOverlayPremium: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    height: '65%',
-    justifyContent: 'flex-end'
-  },
-  newsSourcePremium: { color: '#00FFFF', fontSize: 9, fontWeight: '900', marginBottom: 4 },
-  newsTitlePremium: { color: '#FFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  newsLoadingContainer: { height: 120, justifyContent: 'center', alignItems: 'center', width: 240 },
-  newsLoadingText: { color: '#666', fontSize: 12, fontStyle: 'italic' },
   newsContainerVertical: { marginTop: 40, width: '40%', paddingBottom: 20 },
   newsListVertical: { paddingHorizontal: 50, gap: 15 },
   newsCardVertical: {
@@ -1755,12 +1737,23 @@ const styles = StyleSheet.create({
     marginTop: 5,
     letterSpacing: 2
   },
-  footer: { height: 60, borderTopWidth: 1, borderTopColor: '#333', backgroundColor: '#1E1E1E', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 30 },
+  footer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 40, 
+    height: 70, 
+    borderTopWidth: 1, 
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
   footerLeft: { flexDirection: 'row', alignItems: 'center' },
   footerRight: { flexDirection: 'row', alignItems: 'center' },
-  footerHint: { color: '#CCC', fontSize: 14, marginLeft: 20, alignItems: 'center' },
-  footerBtn: { flexDirection: 'row', alignItems: 'center' },
-  btnIcon: { color: '#FFF', fontWeight: 'bold', backgroundColor: '#333', borderRadius: 10, overflow: 'hidden', paddingHorizontal: 6, paddingVertical: 2, fontSize: 12 },
+  
+  footerBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  footerBtnFocused: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  footerHint: { color: '#FFF', fontSize: 14, fontWeight: '500' },
+  btnIcon: { color: '#00FFFF', fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: 400, backgroundColor: '#2A2A2A', borderRadius: 12, padding: 25, borderWidth: 1, borderColor: '#444' },
   modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },

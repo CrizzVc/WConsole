@@ -4,6 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { ConsoleItem } from '../app/(tabs)/index';
 import YoutubePlayer from './YoutubePlayer';
+import ControlPrompt from './ControlPrompt';
 
 interface GameDetailViewProps {
   isVisible: boolean;
@@ -12,9 +13,10 @@ interface GameDetailViewProps {
   onLaunch?: (id: string, path: string) => void;
   onRefresh?: () => void;
   isLaunching?: boolean;
+  inputMode: 'keyboard' | 'gamepad';
 }
 
-const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClose, onLaunch, onRefresh, isLaunching }) => {
+const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClose, onLaunch, onRefresh, isLaunching, inputMode }) => {
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ConsoleItem>>({});
   const [isSyncing, setIsSyncing] = useState(false);
@@ -223,7 +225,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             onPress={onClose}
             accessible={false}
           >
-            <Ionicons name="arrow-back-outline" size={28} color="#FFF" />
+            <ControlPrompt btn="Back" label="" inputMode={inputMode} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -279,8 +281,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                       }
                   }}
                 >
-                  <Ionicons name="play" size={18} color="#FFF" />
-                  <Text style={styles.playButtonText}>inicio</Text>
+                  <ControlPrompt btn="A" label="Iniciar" inputMode={inputMode} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -294,8 +295,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                     setEditModalVisible(true);
                   }}
                 >
-                  <Ionicons name="settings-outline" size={18} color="#FFF" />
-                  <Text style={styles.playButtonText}>Editar</Text>
+                  <ControlPrompt btn="Options" label="Editar" inputMode={inputMode} />
                 </TouchableOpacity>
 
 

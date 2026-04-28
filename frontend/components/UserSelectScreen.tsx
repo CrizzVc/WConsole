@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import ControlPrompt from './ControlPrompt';
 
 
 export interface UserSettings {
@@ -50,6 +51,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [homeBg, setHomeBg] = useState<string | null>(null);
   const [time, setTime] = useState('');
+  const [inputMode, setInputMode] = useState<'keyboard' | 'gamepad'>('keyboard');
 
   // Cargar usuarios al inicio
   useEffect(() => {
@@ -122,6 +124,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
     const interval = setInterval(updateTime, 60000);
     // Keyboard Navigation
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e as any).fromGamepad) setInputMode('keyboard');
       const totalItems = users.length + 1; // +1 for Add User
       const allIds = ['add', ...users.map(u => u.id)];
       const currentIndex = allIds.indexOf(hoveredId || 'add');
@@ -172,7 +175,10 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         const buttons = gp.buttons;
         
         const dispatch = (key: string) => {
-          window.dispatchEvent(new KeyboardEvent('keydown', { key } as any));
+          setInputMode('gamepad');
+          const event = new KeyboardEvent('keydown', { key } as any);
+          (event as any).fromGamepad = true;
+          window.dispatchEvent(event);
           lastMoveTime = now;
         };
 
@@ -287,8 +293,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
               <Text style={[styles.userName, isFocused && styles.userNameFocused]}>{user.name}</Text>
               {isFocused && (
                 <View style={styles.optionsHint}>
-                  <MaterialCommunityIcons name="menu" size={16} color="#FFF" />
-                  <Text style={styles.optionsText}>Options</Text>
+                  <ControlPrompt btn="Options" label="Opciones" inputMode={inputMode} />
                 </View>
               )}
             </TouchableOpacity>
@@ -303,10 +308,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
 
       {/* BOTTOM RIGHT HINT */}
       <View style={styles.bottomRightHint}>
-        <View style={styles.hintIcon}>
-          <Ionicons name="close" size={16} color="#000" />
-        </View>
-        <Text style={styles.hintText}>Select</Text>
+        <ControlPrompt btn="A" label="Seleccionar" inputMode={inputMode} />
       </View>
     </View>
   );
