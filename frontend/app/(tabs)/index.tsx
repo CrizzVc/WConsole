@@ -39,12 +39,7 @@ const DATA_GAMES: ConsoleItem[] = [
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
 ];
 
-const DATA_MEDIA: ConsoleItem[] = [
-  { id: 'm1', title: 'Twitch', time: 'App - Ver directos', image: require('@/assets/images/game_dark.png'), description: 'La plataforma líder de streaming en vivo. Sigue a tus streamers favoritos y disfruta de gaming, música y mucho más en tiempo real.', rating: 4.7 },
-  { id: 'm2', title: 'Netflix', time: 'App - Películas y Series', image: require('@/assets/images/game_adventure.png'), description: 'Miles de películas, series y documentales. Disfruta del mejor entretenimiento cuando y donde quieras, con calidad 4K y sonido espacial.', rating: 4.8 },
-  { id: 'm3', title: 'Spotify', time: 'App - Música', image: require('@/assets/images/game_cyberpunk.png'), description: 'Millones de canciones y podcasts. Descubre nueva música, crea listas de reproducción y disfruta del audio de alta calidad sin interrupciones.', rating: 4.6 },
-  { id: 'm4', title: 'Disney+', time: 'App - Entretenimiento', image: require('@/assets/images/game_dark.png'), description: 'El hogar de Disney, Pixar, Marvel, Star Wars y National Geographic. Magia sin límites para toda la familia en una sola plataforma.', rating: 4.7 },
-];
+const DATA_MEDIA: ConsoleItem[] = [];
 
 export default function ConsoleHome() {
   const { activeUser, changeUser, updateUser } = useUser();
@@ -663,7 +658,7 @@ export default function ConsoleHome() {
 
   const currentBg = (activeTab === 'Games' && activeIndex === 0)
     ? (homeBackground || require('@/assets/images/FondoDefault.png'))
-    : (currentData[activeIndex]?.isLastPlayed ? lastPlayedGame?.backgroundImage : currentData[activeIndex]?.backgroundImage);
+    : (currentData[activeIndex]?.isLastPlayed ? lastPlayedGame?.backgroundImage : (currentData[activeIndex]?.backgroundImage || require('@/assets/images/FondoDefault.png')));
 
   // Trigger crossfade when currentBg changes
   useEffect(() => {
@@ -843,6 +838,11 @@ export default function ConsoleHome() {
                     <Text style={styles.libraryEmptyText}>No hay juegos disponibles en la biblioteca aún.</Text>
                   </View>
                 )}
+              </View>
+            ) : currentData.length === 0 ? (
+              <View style={styles.mediaEmptyContainer}>
+                <Ionicons name="film-outline" size={Math.round(80 * scale)} color="rgba(255,255,255,0.15)" />
+                <Text style={styles.mediaEmptyText}>No hay aplicaciones de multimedia</Text>
               </View>
             ) : (
               <ScrollView
@@ -2114,6 +2114,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#FFF',
+  },
+  mediaEmptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+  },
+  mediaEmptyText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 16,
+    marginTop: 15,
+    fontWeight: '600',
   },
 });
 
