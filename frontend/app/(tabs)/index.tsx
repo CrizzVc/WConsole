@@ -1165,7 +1165,7 @@ export default function ConsoleHome() {
         {/* BOTTOM NEWS SECTION (VERTICAL) */}
         <View style={styles.newsContainerVertical}>
           <View style={styles.newsHeaderContainer}>
-            <Ionicons name="newspaper-outline" size={14} color="#00FFFF" />
+            <Ionicons name="newspaper-outline" size={18} color="#00FFFF" />
             <Text style={styles.newsSectionTitle}>ÚLTIMAS NOTICIAS</Text>
           </View>
           <View style={styles.newsListVertical}>
@@ -1687,6 +1687,19 @@ const styles = StyleSheet.create({
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
   newsContainerVertical: { marginTop: 40, width: '40%', paddingBottom: 20 },
+  newsHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 50,
+    marginBottom: 20,
+    gap: 10,
+  },
+  newsSectionTitle: {
+    color: '#00FFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
   newsListVertical: { paddingHorizontal: 50, gap: 15 },
   newsCardVertical: {
     width: '100%',
@@ -1718,6 +1731,23 @@ const styles = StyleSheet.create({
     color: '#AAA',
     fontSize: 12,
     lineHeight: 16,
+  },
+  newsSourcePremium: {
+    color: '#00FFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    opacity: 0.8,
+  },
+  newsLoadingContainer: {
+    paddingHorizontal: 50,
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  newsLoadingText: {
+    color: '#666',
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   backToTopCardVertical: {
     width: '100%',
