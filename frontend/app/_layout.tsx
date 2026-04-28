@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import UserSelectScreen, { UserProfile } from '@/components/UserSelectScreen';
@@ -19,6 +20,15 @@ export default function RootLayout() {
   if (!activeUser) {
     return (
       <>
+        <style dangerouslySetInnerHTML={{ __html: `
+          * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          *::-webkit-scrollbar {
+            display: none;
+          }
+        ` }} />
         <UserSelectScreen onUserSelected={(user) => setActiveUser(user)} />
         <StatusBar style="light" />
       </>
@@ -49,6 +59,15 @@ export default function RootLayout() {
 
   return (
     <UserContext.Provider value={{ activeUser, changeUser: () => setActiveUser(null), updateUser }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        * {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        *::-webkit-scrollbar {
+          display: none;
+        }
+      ` }} />
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

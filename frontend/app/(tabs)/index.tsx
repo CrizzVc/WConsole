@@ -882,7 +882,20 @@ export default function ConsoleHome() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={false} // Only scroll via navigation/code for console feel
+        scrollEnabled={true}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (y < 200) {
+            if (focusArea !== 'main_carousel' && focusArea !== 'header_tabs' && focusArea !== 'header_user') {
+              setFocusArea('main_carousel');
+            }
+          } else if (y >= 200 && y < 450) {
+            if (focusArea !== 'widgets_row') setFocusArea('widgets_row');
+          } else if (y >= 450) {
+            if (focusArea !== 'bottom_news' && focusArea !== 'footer') setFocusArea('bottom_news');
+          }
+        }}
+        scrollEventThrottle={16}
       >
         {/* MAIN CONTENT */}
         <Animated.View style={[styles.mainContent, animatedTabContentStyle]}>
