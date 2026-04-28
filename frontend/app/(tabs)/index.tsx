@@ -571,8 +571,17 @@ export default function ConsoleHome() {
                 setHomeBgModalVisible(true);
                 return;
               }
-              setSelectedItem(item);
-              setDetailVisible(true);
+              if (item.isLastPlayed) {
+                if (lastPlayedGame) {
+                  setSelectedItem(lastPlayedGame);
+                  setDetailVisible(true);
+                } else {
+                  alert('Aún no has jugado a ningún juego.');
+                }
+              } else {
+                setSelectedItem(item);
+                setDetailVisible(true);
+              }
             }
           } else if (focusArea === 'widgets_row') {
             if (focusIndex === 1) { // Screenshots
