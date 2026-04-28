@@ -40,6 +40,7 @@ function createWindow() {
     height: 700,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false, // Permitir carga de assets locales y externos sin restricciones de CORS/CSP en este entorno de consola
     },
   });
 
@@ -100,8 +101,8 @@ app.whenReady().then(() => {
   initDB();
 
   // Registrar protocolo personalizado para cargar imágenes locales y videos de forma segura
-  // Usamos registerFileProtocol para mejor soporte de streaming/rangos en videos
-  protocol.registerFileProtocol('local-file', (request, callback) => {
+  // Usamos protocol.handle para mejor soporte en versiones recientes de Electron
+  protocol.handle('local-file', async (request) => {
     try {
       let filePath = decodeURIComponent(request.url.replace('local-file://', ''));
 
@@ -113,9 +114,28 @@ app.whenReady().then(() => {
         }
       }
 
-      callback({ path: path.normalize(filePath) });
+      // Convertimos la ruta a un formato de URL de archivo válido
+      const fileUrl = pathToFileURL(path.normalize(filePath)).toString();
+      return net.fetch(fileUrl);
     } catch (err) {
       console.error('Protocol error:', err);
+      return new Response('Error loading local file', { status: 500 });
+    }
+  });
+
+  // IPC: Obtener noticias (desde el Proceso Principal para evitar bloqueos de red en el renderer)
+  ipcMain.handle('fetch-news', async () => {
+    const API_KEY = '84b43625d92547c89d24fab37f0543af'; 
+    const BASE_URL = 'https://newsapi.org/v2';
+    try {
+      const response = await fetch(
+        `${BASE_URL}/everything?q=videojuegos+gaming&sortBy=publishedAt&pageSize=10&apiKey=${API_KEY}`
+      );
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching news in main:', error);
+      return { status: 'error', message: error.message };
     }
   });
 

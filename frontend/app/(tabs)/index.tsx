@@ -226,6 +226,7 @@ export default function ConsoleHome() {
   };
 
   useEffect(() => {
+    loadApps(); // Cargar juegos y aplicaciones al iniciar
     fetchGamingNews().then(setNews);
     soundService.init();
 

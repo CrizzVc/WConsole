@@ -14,7 +14,16 @@ export interface NewsArticle {
 
 export const fetchGamingNews = async (): Promise<NewsArticle[]> => {
   try {
-    // Buscamos noticias de videojuegos en español e inglés para tener más contenido
+    // Si estamos en Electron, preferimos usar el proceso principal para evitar bloqueos de red/CORS
+    if ((window as any).electronAPI && (window as any).electronAPI.fetchNews) {
+      const data = await (window as any).electronAPI.fetchNews();
+      if (data.status === 'ok') {
+        return data.articles.filter((article: NewsArticle) => article.urlToImage && article.title);
+      }
+      console.error('Error fetching news from Electron Main:', data.message);
+    }
+
+    // Fallback o modo web: fetch directo
     const response = await fetch(
       `${BASE_URL}/everything?q=videojuegos+gaming&sortBy=publishedAt&pageSize=10&apiKey=${API_KEY}`
     );

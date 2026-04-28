@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getStorageInfo: () => ipcRenderer.invoke('get-storage-info'),
   openScreenshots: () => ipcRenderer.invoke('open-screenshots'),
   deleteApp: (id) => ipcRenderer.invoke('delete-app', id),
+  fetchNews: () => ipcRenderer.invoke('fetch-news'),
 });
 
 
