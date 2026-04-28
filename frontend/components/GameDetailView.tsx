@@ -105,6 +105,23 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
   };
 
 
+  const handleToggleFavorite = async () => {
+    console.log('Toggling favorite for:', item.id);
+    if ((window as any).electronAPI && item.id) {
+      const newStatus = !item.isFavorite;
+      const result = await (window as any).electronAPI.updateApp({ id: item.id, isFavorite: newStatus });
+      console.log('Update result:', result);
+      if (result.success) {
+        if (onRefresh) onRefresh();
+      } else {
+        alert('No se pudo marcar como favorito: ' + result.error);
+      }
+    } else {
+      console.log('Missing electronAPI or item.id');
+    }
+  };
+
+
   const handleSyncSteamGrid = async () => {
     if ((window as any).electronAPI && editData.title) {
       setIsSyncing(true);
@@ -194,6 +211,13 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                 >
                   <Ionicons name="settings-outline" size={18} color="#FFF" />
                   <Text style={styles.playButtonText}>Editar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.favoriteButton, item.isFavorite && styles.favoriteButtonActive]}
+                  onPress={handleToggleFavorite}
+                >
+                  <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={22} color={item.isFavorite ? "#FF2D55" : "#FFF"} />
                 </TouchableOpacity>
 
                 <View style={styles.ratingContainer}>
@@ -323,6 +347,8 @@ const styles = StyleSheet.create({
   detailActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   playButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8, marginRight: 22 },
   playButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 10 },
+  favoriteButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
+  favoriteButtonActive: { backgroundColor: 'rgba(255, 45, 85, 0.2)', borderWidth: 1, borderColor: 'rgba(255, 45, 85, 0.5)' },
   ratingContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto' },
   ratingText: { color: '#FFD700', fontSize: 22, fontWeight: 'bold', marginLeft: 7 },
   detailDescription: { color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 21, marginBottom: 18 },

@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GameDetailView from '@/components/GameDetailView';
+import FavoritesView from '@/components/FavoritesView';
 import { useUser } from '@/contexts/UserContext';
 
 const TABS = ['Games', 'Media', 'eShop'];
@@ -21,6 +22,7 @@ export interface ConsoleItem {
   path?: string;
   description?: string;
   rating?: number;
+  isFavorite?: boolean;
 }
 
 const DATA_GAMES: ConsoleItem[] = [
@@ -69,8 +71,9 @@ export default function ConsoleHome() {
   const [isUserModalVisible, setUserModalVisible] = useState(false);
   const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
   const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
+  const [isFavoritesVisible, setFavoritesVisible] = useState(false);
   const [homeBackground, setHomeBackground] = useState<any>(null);
-  
+
   // Background transition states
   const [bgA, setBgA] = useState<any>(null);
   const [bgB, setBgB] = useState<any>(null);
@@ -120,7 +123,8 @@ export default function ConsoleHome() {
 
             path: g.path,
             description: g.description,
-            rating: g.rating
+            rating: g.rating,
+            isFavorite: g.isFavorite
           }));
           setGames([...DATA_GAMES, ...formattedGames]);
         }
@@ -135,7 +139,8 @@ export default function ConsoleHome() {
 
             path: m.path,
             description: m.description,
-            rating: m.rating
+            rating: m.rating,
+            isFavorite: m.isFavorite
           }));
           setMedia([...DATA_MEDIA, ...formattedMedia]);
         }
@@ -146,6 +151,14 @@ export default function ConsoleHome() {
   useEffect(() => {
     loadApps();
   }, []);
+
+  // Sincronizar selectedItem cuando cambian las listas
+  useEffect(() => {
+    if (selectedItem) {
+      const updated = currentData.find(i => i.id === selectedItem.id);
+      if (updated) setSelectedItem(updated);
+    }
+  }, [games, media, activeTab]);
 
   // Keyboard Navigation Listener
   useEffect(() => {
@@ -205,13 +218,19 @@ export default function ConsoleHome() {
           setActiveIndex((prev) => Math.max(prev - 1, 0));
         } else if (e.key === 'Enter') {
           const item = currentData[activeIndex];
-          if (item && !item.isFolder && !item.isGrid) {
-            if (activeTab === 'Games' && activeIndex === 0) {
-              setHomeBgModalVisible(true);
+          if (item) {
+            if (item.isFolder) {
+              setFavoritesVisible(true);
               return;
             }
-            setSelectedItem(item);
-            setDetailVisible(true);
+            if (!item.isGrid) {
+              if (activeTab === 'Games' && activeIndex === 0) {
+                setHomeBgModalVisible(true);
+                return;
+              }
+              setSelectedItem(item);
+              setDetailVisible(true);
+            }
           }
         }
       };
@@ -238,7 +257,11 @@ export default function ConsoleHome() {
         setHomeBgModalVisible(true);
         return;
       }
-      if (!item.isFolder && !item.isGrid) {
+      if (item.isFolder) {
+        setFavoritesVisible(true);
+        return;
+      }
+      if (!item.isGrid) {
         setSelectedItem(item);
         setDetailVisible(true);
       }
@@ -444,10 +467,19 @@ export default function ConsoleHome() {
                 return (
                   <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
                     <View style={[styles.folderContainer, cardContainerStyle]}>
-                      <Text style={styles.folderTitle}>Favorite Games</Text>
+                      <View style={styles.folderHeader}>
+                        <Ionicons name="heart" size={16} color="#FF2D55" />
+                        <Text style={styles.folderTitle}> Favorite Games</Text>
+                      </View>
                       <View style={styles.folderContent}>
-                        <Image source={require('@/assets/images/game_dark.png')} style={styles.folderImg} />
-                        <Image source={require('@/assets/images/game_cyberpunk.png')} style={styles.folderImg} />
+                        {games.filter(g => g.isFavorite).slice(0, 2).map((fav, i) => (
+                          <Image key={fav.id} source={fav.image} style={styles.folderImg} />
+                        ))}
+                        {games.filter(g => g.isFavorite).length === 0 && (
+                          <View style={styles.folderEmpty}>
+                            <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
+                          </View>
+                        )}
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -515,6 +547,17 @@ export default function ConsoleHome() {
         onRefresh={loadApps}
         onLaunch={(path) => {
           if (Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.launchApp(path);
+          }
+        }}
+      />
+
+      <FavoritesView
+        isVisible={isFavoritesVisible}
+        favorites={games.filter(g => g.isFavorite)}
+        onClose={() => setFavoritesVisible(false)}
+        onLaunch={(path) => {
+          if (path && Platform.OS === 'web' && (window as any).electronAPI) {
             (window as any).electronAPI.launchApp(path);
           }
         }}
@@ -727,10 +770,18 @@ const styles = StyleSheet.create({
   gridContainer: { backgroundColor: '#111', padding: 6, justifyContent: 'space-between' },
   gridRow: { flexDirection: 'row', justifyContent: 'space-between', flex: 1, marginBottom: 6 },
   gridItem: { flex: 1, borderRadius: 8, marginHorizontal: 3, alignItems: 'center', justifyContent: 'center' },
-  folderContainer: { backgroundColor: '#2A2A2A', padding: 15 },
-  folderTitle: { color: '#FFF', fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+  folderContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 15,
+    backdropFilter: 'blur(15px)', // Standard CSS for Electron/Web
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  } as any,
+  folderHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  folderTitle: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
   folderContent: { flexDirection: 'row', justifyContent: 'space-between', flex: 1 },
   folderImg: { width: '48%', height: '100%', borderRadius: 8 },
+  folderEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
   newsContainer: { height: 120, justifyContent: 'center' },
