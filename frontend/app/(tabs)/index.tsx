@@ -235,12 +235,15 @@ export default function ConsoleHome() {
     }
   }, []);
 
+  // Gamepad state refs
+  const prevButtonsRef = useRef(new Array(16).fill(false));
+  const prevAxesRef = useRef([0, 0, 0, 0]);
+  const lastGpId = useRef<string | null>(null);
+
   // Gamepad Support
   useEffect(() => {
     let rafId: number;
-    const prevButtons = new Array(16).fill(false);
-    let lastMoveTime = 0;
-    const THROTTLE = 200;
+
 
     const poll = () => {
       const gamepads = navigator.getGamepads();
@@ -250,20 +253,46 @@ export default function ConsoleHome() {
         const buttons = gp.buttons;
 
         const dispatch = (key: string) => {
-          window.dispatchEvent(new KeyboardEvent('keydown', { key }));
-          lastMoveTime = now;
+          window.dispatchEvent(new KeyboardEvent('keydown', { 
+            key, 
+            bubbles: true, 
+            cancelable: true,
+            keyCode: key === 'Enter' ? 13 : (key === 'ArrowRight' ? 39 : (key === 'ArrowLeft' ? 37 : (key === 'ArrowUp' ? 38 : (key === 'ArrowDown' ? 40 : 0))))
+          }));
         };
 
-        // D-Pad and Sticks (Throttled)
-        if (now - lastMoveTime > THROTTLE) {
-          if (buttons[12]?.pressed || gp.axes[1] < -0.5) dispatch('ArrowUp');
-          else if (buttons[13]?.pressed || gp.axes[1] > 0.5) dispatch('ArrowDown');
-          else if (buttons[14]?.pressed || gp.axes[0] < -0.5) dispatch('ArrowLeft');
-          else if (buttons[15]?.pressed || gp.axes[0] > 0.5) dispatch('ArrowRight');
-        }
+        // D-Pad Edge Detection
+        const checkDpad = (idx: number, key: string) => {
+          const pressed = !!buttons[idx]?.pressed;
+          if (pressed && !prevButtonsRef.current[idx]) {
+            dispatch(key);
+          }
+          prevButtonsRef.current[idx] = pressed;
+        };
+
+        checkDpad(12, 'ArrowUp');
+        checkDpad(13, 'ArrowDown');
+        checkDpad(14, 'ArrowLeft');
+        checkDpad(15, 'ArrowRight');
+
+        // Sticks Edge Detection (Threshold based)
+        const checkAxis = (axisIdx: number, posKey: string, negKey: string) => {
+          const val = gp.axes[axisIdx];
+          const prevVal = prevAxesRef.current[axisIdx] || 0;
+          const threshold = 0.5;
+          
+          if (val > threshold && prevVal <= threshold) dispatch(posKey);
+          else if (val < -threshold && prevVal >= -threshold) dispatch(negKey);
+          
+          prevAxesRef.current[axisIdx] = val;
+        };
+
+        checkAxis(1, 'ArrowDown', 'ArrowUp');   // Left Stick Y
+        checkAxis(0, 'ArrowRight', 'ArrowLeft'); // Left Stick X
 
         // Update Gamepad State for Widgets
-        if (!gamepadInfo.connected || gamepadInfo.name !== gp.id) {
+        if (lastGpId.current !== gp.id) {
+          lastGpId.current = gp.id;
           setGamepadInfo({ 
             connected: true, 
             name: gp.id, 
@@ -273,8 +302,9 @@ export default function ConsoleHome() {
 
         // Buttons (One-shot)
         const checkButton = (idx: number, key: string) => {
-          if (buttons[idx]?.pressed && !prevButtons[idx]) dispatch(key);
-          prevButtons[idx] = buttons[idx]?.pressed;
+          const pressed = !!buttons[idx]?.pressed;
+          if (pressed && !prevButtonsRef.current[idx]) dispatch(key);
+          prevButtonsRef.current[idx] = pressed;
         };
 
         checkButton(0, 'Enter');      // A / Cross
@@ -299,6 +329,31 @@ export default function ConsoleHome() {
       if (updated) setSelectedItem(updated);
     }
   }, [games, media, activeTab]);
+
+  // Sincronizar focus si el usuario cierra modales con el mouse
+  useEffect(() => {
+    if (!isUserModalVisible && focusArea === 'header_user') {
+      setFocusArea('main_carousel');
+    }
+  }, [isUserModalVisible]);
+
+  useEffect(() => {
+    if (!isAddModalVisible && focusArea === 'footer') {
+      setFocusArea('main_carousel');
+    }
+  }, [isAddModalVisible]);
+
+  // Manejador global para salir de iframes o click en espacios vacíos
+  const handleGlobalTouch = () => {
+    // Si la interfaz se siente bloqueada, un toque general la devuelve al carrusel
+    // pero solo si no estamos navegando fluidamente o hay algún modal abierto
+    if (!isUserModalVisible && !isAddModalVisible && !isDetailVisible && !isSettingsVisible && !isFavoritesVisible) {
+       // if we click on background, maybe ensure focus area is valid
+       if (focusArea === 'header_user' || focusArea === 'footer') {
+          setFocusArea('main_carousel');
+       }
+    }
+  };
 
   // Keyboard Navigation Listener
   useEffect(() => {
@@ -329,6 +384,7 @@ export default function ConsoleHome() {
         if (isUserModalVisible) {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
             setUserModalVisible(false);
+            setFocusArea('main_carousel');
           } else if (e.key === 'ArrowRight') {
             setModalSelectedIndex((prev) => Math.min(prev + 1, 3));
           } else if (e.key === 'ArrowLeft') {
@@ -352,6 +408,7 @@ export default function ConsoleHome() {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
             setSettingsVisible(false);
             setUserModalVisible(true);
+            setFocusArea('header_user');
           }
           return;
         }
@@ -688,7 +745,7 @@ export default function ConsoleHome() {
   return (
     <SafeAreaView style={styles.container}>
       {/* BACKGROUND DINÁMICO (Dual Layer Crossfade) */}
-      <View style={StyleSheet.absoluteFill}>
+      <View style={StyleSheet.absoluteFill} onTouchEnd={handleGlobalTouch}>
         {showTrailer && currentData[activeIndex]?.youtubeId ? (
           <View style={{ width: windowWidth, height: windowHeight, overflow: 'hidden' }}>
             <YoutubePlayer
