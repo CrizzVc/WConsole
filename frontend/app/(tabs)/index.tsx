@@ -22,7 +22,7 @@ export interface ConsoleItem {
 }
 
 const DATA_GAMES: ConsoleItem[] = [
-  { id: '1', title: 'STARS', time: 'TODAY 1.2 H - TOTAL 5.4 H', image: require('@/assets/images/game_dark.png'), description: 'Un oscuro y atmosférico juego de acción. Enfrenta criaturas del abismo en un mundo de sombras donde cada decisión puede cambiar tu destino para siempre.', rating: 4.8 },
+  { id: '1', title: 'Home', time: 'WConsole - Home', image: require('@/assets/images/Home.jpeg'), description: 'Bienvenido a tu consola personal. Accede a tus juegos y aplicaciones favoritas con una experiencia premium.', rating: 5.0, backgroundImage: require('@/assets/images/Home.jpeg') },
   { id: '2', title: 'Pokémon Legends: Arceus', time: 'TODAY 2.3 H - TOTAL 17.9 H', image: require('@/assets/images/game_adventure.png'), description: 'Explora la antigua región de Hisui en este innovador juego de acción-RPG. Captura, estudia y lucha con Pokémon como nunca antes en la historia de la saga.', rating: 4.9 },
   { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
@@ -67,6 +67,15 @@ export default function ConsoleHome() {
   const [selectedItem, setSelectedItem] = useState<ConsoleItem | null>(null);
   const [isUserModalVisible, setUserModalVisible] = useState(false);
   const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
+  const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
+  const [homeBackground, setHomeBackground] = useState<any>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const savedBg = localStorage.getItem('home_background');
+      if (savedBg) setHomeBackground({ uri: savedBg });
+    }
+  }, []);
 
 
 
@@ -135,6 +144,11 @@ export default function ConsoleHome() {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
+        // Si el usuario está escribiendo en un input o textarea, no interferimos con la navegación del sistema
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+          return;
+        }
+
         // Detail view controls
         if (isDetailVisible) {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
@@ -163,7 +177,7 @@ export default function ConsoleHome() {
           return;
         }
 
-        if (isAddModalVisible) return;
+        if (isAddModalVisible || isHomeBgModalVisible) return;
 
         const dataLength = currentData.length;
         if (e.key === 'q' || e.key === 'Q') {
@@ -185,6 +199,10 @@ export default function ConsoleHome() {
         } else if (e.key === 'Enter') {
           const item = currentData[activeIndex];
           if (item && !item.isFolder && !item.isGrid) {
+            if (activeTab === 'Games' && activeIndex === 0) {
+              setHomeBgModalVisible(true);
+              return;
+            }
             setSelectedItem(item);
             setDetailVisible(true);
           }
@@ -209,6 +227,10 @@ export default function ConsoleHome() {
 
   const handleAppPress = (index: number, item: ConsoleItem) => {
     if (activeIndex === index) {
+      if (activeTab === 'Games' && index === 0) {
+        setHomeBgModalVisible(true);
+        return;
+      }
       if (!item.isFolder && !item.isGrid) {
         setSelectedItem(item);
         setDetailVisible(true);
@@ -261,8 +283,37 @@ export default function ConsoleHome() {
     }
   };
 
+  const handleSelectHomeBg = async () => {
+    if ((window as any).electronAPI) {
+      const img = await (window as any).electronAPI.selectImage();
+      if (img) {
+        const bgUri = `local-file:///${img.replace(/\\/g, '/')}`;
+        setHomeBackground({ uri: bgUri });
+        localStorage.setItem('home_background', bgUri);
+        setHomeBgModalVisible(false);
+      }
+    }
+  };
+
+  const currentBg = (activeTab === 'Games' && activeIndex === 0 && homeBackground) 
+    ? homeBackground 
+    : currentData[activeIndex]?.backgroundImage;
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* BACKGROUND DINÁMICO */}
+      {currentBg && (
+        <Image 
+          source={currentBg} 
+          key={currentBg?.uri || (typeof currentBg === 'number' ? currentBg : 'bg')}
+          style={StyleSheet.absoluteFillObject} 
+          resizeMode="cover"
+        />
+      )}
+      {/* OVERLAY PARA LEGIBILIDAD (Solo si hay fondo) */}
+      {currentBg && (
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
+      )}
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -491,7 +542,42 @@ export default function ConsoleHome() {
         </View>
       </Modal>
 
-      {/* USER/POWER MODAL */}
+      {/* MODAL TO CHANGE HOME BACKGROUND */}
+      <Modal visible={isHomeBgModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Configurar Fondo de Inicio</Text>
+            <Text style={{ color: '#AAA', textAlign: 'center', marginBottom: 20 }}>
+              Selecciona una imagen personalizada para el fondo de tu pantalla principal.
+            </Text>
+
+            <TouchableOpacity style={styles.fileBtn} onPress={handleSelectHomeBg}>
+              <Ionicons name="image" size={24} color="#FFF" />
+              <Text style={styles.fileBtnText}>Seleccionar Imagen de Fondo</Text>
+            </TouchableOpacity>
+
+            {homeBackground && (
+              <TouchableOpacity 
+                style={[styles.fileBtn, { backgroundColor: '#442222' }]} 
+                onPress={() => {
+                  setHomeBackground(null);
+                  localStorage.removeItem('home_background');
+                  setHomeBgModalVisible(false);
+                }}
+              >
+                <Ionicons name="trash" size={24} color="#FF5555" />
+                <Text style={[styles.fileBtnText, { color: '#FF5555' }]}>Eliminar Fondo Personalizado</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setHomeBgModalVisible(false)}>
+                <Text style={styles.cancelBtnText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <Modal visible={isUserModalVisible} transparent animationType="fade">
         <TouchableOpacity 
           style={styles.userModalOverlay} 
