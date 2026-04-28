@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Animated,
   Dimensions,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 
@@ -29,10 +29,24 @@ const DEFAULT_USERS: UserProfile[] = [
 ];
 
 export default function UserSelectScreen({ onUserSelected }: UserSelectScreenProps) {
-  const [users] = useState<UserProfile[]>(DEFAULT_USERS);
-  const [hoveredId, setHoveredId] = useState<string | null>(users[0].id);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [homeBg, setHomeBg] = useState<string | null>(null);
   const [time, setTime] = useState('');
+
+  // Cargar usuarios al inicio
+  useEffect(() => {
+    const saved = localStorage.getItem('console_users');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setUsers(parsed);
+      if (parsed.length > 0) setHoveredId(parsed[0].id);
+    } else {
+      localStorage.setItem('console_users', JSON.stringify(DEFAULT_USERS));
+      setUsers(DEFAULT_USERS);
+      setHoveredId(DEFAULT_USERS[0].id);
+    }
+  }, []);
 
   // Background pulse animation for fallback
   const bgPulse = useRef(new Animated.Value(0)).current;
@@ -77,7 +91,16 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         setHoveredId(allIds[nextIndex]);
       } else if (e.key === 'Enter') {
         if (hoveredId === 'add') {
-          // Add user logic
+          const newUser: UserProfile = {
+            id: Date.now().toString(),
+            name: `Player ${users.length + 1}`,
+            avatar: `https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70)}`,
+            color: '#FFCC00'
+          };
+          const newList = [...users, newUser];
+          setUsers(newList);
+          localStorage.setItem('console_users', JSON.stringify(newList));
+          setHoveredId(newUser.id);
         } else {
           const user = users.find(u => u.id === hoveredId);
           if (user) handleSelect(user);
@@ -166,11 +189,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
                 onMouseLeave: () => setHoveredId(null)
               } : {})}
             >
-              {isFocused && (
-                <View style={styles.focusIndicator}>
-                  <Ionicons name="game-controller" size={18} color="#FFF" />
-                </View>
-              )}
+              {/* Removed focus indicator */}
               <View style={[
                 styles.card, 
                 isFocused && styles.cardFocused,

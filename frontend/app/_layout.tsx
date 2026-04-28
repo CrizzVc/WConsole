@@ -25,8 +25,23 @@ export default function RootLayout() {
     );
   }
 
+  const updateUser = (updates: Partial<UserProfile>) => {
+    if (activeUser) {
+      const newUser = { ...activeUser, ...updates };
+      setActiveUser(newUser);
+
+      // Persistir en el listado global de usuarios
+      const savedUsers = localStorage.getItem('console_users');
+      if (savedUsers) {
+        const usersList: UserProfile[] = JSON.parse(savedUsers);
+        const updatedList = usersList.map(u => u.id === newUser.id ? newUser : u);
+        localStorage.setItem('console_users', JSON.stringify(updatedList));
+      }
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ activeUser, changeUser: () => setActiveUser(null) }}>
+    <UserContext.Provider value={{ activeUser, changeUser: () => setActiveUser(null), updateUser }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

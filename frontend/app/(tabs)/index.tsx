@@ -30,7 +30,7 @@ export interface ConsoleItem {
 }
 
 const DATA_GAMES: ConsoleItem[] = [
-  { id: '1', title: 'Home', time: 'WConsole - Home', image: require('@/assets/images/Home.jpeg'), description: 'Bienvenido a tu consola personal. Accede a tus juegos y aplicaciones favoritas con una experiencia premium.', rating: 5.0, backgroundImage: require('@/assets/images/FondoDefault.jpeg') },
+  { id: '1', title: 'Home', time: 'WConsole - Home', image: require('@/assets/images/Home.jpeg'), description: 'Bienvenido a tu consola personal. Accede a tus juegos y aplicaciones favoritas con una experiencia premium.', rating: 5.0, backgroundImage: require('@/assets/images/FondoDefault.png') },
   { id: 'last_played', title: 'Último Jugado', time: 'No ejecutado aún', image: require('@/assets/images/Home.jpeg'), isLastPlayed: true },
   { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
@@ -44,7 +44,7 @@ const DATA_MEDIA: ConsoleItem[] = [
 ];
 
 export default function ConsoleHome() {
-  const { activeUser, changeUser } = useUser();
+  const { activeUser, changeUser, updateUser } = useUser();
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -450,9 +450,19 @@ export default function ConsoleHome() {
       }
     }
   };
+  
+  const handleSelectAvatar = async () => {
+    if ((window as any).electronAPI) {
+      const img = await (window as any).electronAPI.selectImage();
+      if (img) {
+        const avatarUri = `local-file:///${img.replace(/\\/g, '/')}`;
+        updateUser({ avatar: avatarUri });
+      }
+    }
+  };
 
   const currentBg = (activeTab === 'Games' && activeIndex === 0)
-    ? (homeBackground || require('@/assets/images/FondoDefault.jpeg'))
+    ? (homeBackground || require('@/assets/images/FondoDefault.png'))
     : (currentData[activeIndex]?.isLastPlayed ? lastPlayedGame?.backgroundImage : currentData[activeIndex]?.backgroundImage);
 
   // Trigger crossfade when currentBg changes
@@ -949,8 +959,20 @@ export default function ConsoleHome() {
           <View style={styles.userModalContent}>
             {/* Header User Profile */}
             <View style={styles.userModalHeader}>
-              <Ionicons name="person-outline" size={16} color="#E0E0FF" style={{ marginRight: 8 }} />
-              <Text style={styles.userModalHeaderName}>{activeUser?.name || 'Invitado'}@WConsole</Text>
+              <TouchableOpacity onPress={handleSelectAvatar} style={styles.modalAvatarContainer}>
+                {activeUser?.avatar ? (
+                  <Image source={{ uri: activeUser.avatar }} style={styles.modalAvatar} />
+                ) : (
+                  <Ionicons name="person" size={24} color="#FFF" />
+                )}
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera" size={12} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+              <View>
+                <Text style={styles.userModalHeaderName}>{activeUser?.name || 'Invitado'}@WConsole</Text>
+                <Text style={styles.userModalHeaderStatus}>Online</Text>
+              </View>
             </View>
 
             {/* Power Buttons */}
@@ -1109,6 +1131,10 @@ const styles = StyleSheet.create({
   statusInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusText: { color: '#A0A0C0', fontSize: 14, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   statusSeparator: { color: '#404060', fontSize: 18 },
+  modalAvatarContainer: { position: 'relative', marginRight: 15 },
+  modalAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#FFF' },
+  avatarEditBadge: { position: 'absolute', bottom: -2, right: -2, backgroundColor: '#00FFFF', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1E1E2E' },
+  userModalHeaderStatus: { color: '#00FF00', fontSize: 10, fontWeight: 'bold' },
 
   // New Focus Styles
   itemFocused: {
