@@ -30,6 +30,7 @@ export interface ConsoleItem {
   isLastPlayed?: boolean;
   lastPlayed?: number;
   youtubeId?: string;
+  type?: 'game' | 'media' | 'web';
 }
 
 const DATA_GAMES: ConsoleItem[] = [
@@ -168,57 +169,49 @@ export default function ConsoleHome() {
     return () => clearInterval(interval);
   }, []);
 
-  // Cargar apps desde la DB local
   const loadApps = () => {
     if (Platform.OS === 'web' && (window as any).electronAPI) {
       (window as any).electronAPI.getApps().then((data: any) => {
-        let allFormatted: ConsoleItem[] = [];
+        const formatApp = (app: any) => ({
+          id: app.id,
+          title: app.title,
+          time: app.type === 'game' ? 'Juego' : (app.type === 'web' ? 'Web App' : 'Media'),
+          image: app.imageBase64 
+            ? { uri: app.imageBase64 } 
+            : (app.image 
+                ? (app.image.startsWith('http') ? { uri: app.image } : { uri: `local-file:///${app.image.replace(/\\/g, '/')}` }) 
+                : (app.type === 'web' ? require('@/assets/images/web_default.jpg') : require('@/assets/images/Home.gif'))
+              ),
+          logo: app.logoBase64 ? { uri: app.logoBase64 } : (app.logo ? (app.logo.startsWith('http') ? { uri: app.logo } : { uri: `local-file:///${app.logo.replace(/\\/g, '/')}` }) : null),
+          backgroundImage: app.backgroundImageBase64 
+            ? { uri: app.backgroundImageBase64 } 
+            : (app.backgroundImage 
+                ? (app.backgroundImage.startsWith('http') ? { uri: app.backgroundImage } : { uri: `local-file:///${app.backgroundImage.replace(/\\/g, '/')}` }) 
+                : require('@/assets/images/FondoDefault.png')
+              ),
+          video: app.video ? (app.video.startsWith('http') ? { uri: app.video } : { uri: `local-file:///${app.video.replace(/\\/g, '/')}` }) : null,
+          path: app.path,
+          description: app.description,
+          rating: app.rating,
+          isFavorite: app.isFavorite,
+          lastPlayed: app.lastPlayed,
+          youtubeId: app.youtubeId,
+          type: app.type
+        });
 
-        if (data.games) {
-          const formattedGames = data.games.map((g: any) => ({
-            id: g.id,
-            title: g.title,
-            time: 'Custom App',
-            image: g.imageBase64 ? { uri: g.imageBase64 } : (g.image ? (g.image.startsWith('http') ? { uri: g.image } : { uri: `local-file:///${g.image.replace(/\\/g, '/')}` }) : null),
-            logo: g.logoBase64 ? { uri: g.logoBase64 } : (g.logo ? (g.logo.startsWith('http') ? { uri: g.logo } : { uri: `local-file:///${g.logo.replace(/\\/g, '/')}` }) : null),
-            backgroundImage: g.backgroundImageBase64 ? { uri: g.backgroundImageBase64 } : (g.backgroundImage ? (g.backgroundImage.startsWith('http') ? { uri: g.backgroundImage } : { uri: `local-file:///${g.backgroundImage.replace(/\\/g, '/')}` }) : null),
-            video: g.video ? (g.video.startsWith('http') ? { uri: g.video } : { uri: `local-file:///${g.video.replace(/\\/g, '/')}` }) : null,
-            path: g.path,
-            description: g.description,
-            rating: g.rating,
-            isFavorite: g.isFavorite,
-            lastPlayed: g.lastPlayed,
-            youtubeId: g.youtubeId
-          }));
-          const sortedGames = [...formattedGames].reverse();
-          setGames([...DATA_GAMES, ...sortedGames]);
-          allFormatted = [...allFormatted, ...sortedGames];
-        }
-        if (data.media) {
-          const formattedMedia = data.media.map((m: any) => ({
-            id: m.id,
-            title: m.title,
-            time: 'Custom Media',
-            image: m.imageBase64 ? { uri: m.imageBase64 } : (m.image ? (m.image.startsWith('http') ? { uri: m.image } : { uri: `local-file://${m.image}` }) : null),
-            backgroundImage: m.backgroundImageBase64 ? { uri: m.backgroundImageBase64 } : (m.backgroundImage ? (m.backgroundImage.startsWith('http') ? { uri: m.backgroundImage } : { uri: `local-file://${m.backgroundImage}` }) : null),
-            video: m.video ? (m.video.startsWith('http') ? { uri: m.video } : { uri: `local-file://${m.video}` }) : null,
-            path: m.path,
-            description: m.description,
-            rating: m.rating,
-            isFavorite: m.isFavorite,
-            lastPlayed: m.lastPlayed,
-            youtubeId: m.youtubeId
-          }));
-          setMedia([...DATA_MEDIA, ...formattedMedia]);
-          allFormatted = [...allFormatted, ...formattedMedia];
-        }
+        const gamesList = (data.games || []).map(formatApp);
+        const mediaList = (data.media || []).map(formatApp);
+
+        setGames([...DATA_GAMES.filter(g => g.id !== 'last_played' && !g.isFolder && !g.isGrid), ...gamesList.reverse(), ...DATA_GAMES.filter(g => g.id === 'last_played' || g.isFolder || g.isGrid)]);
+        setMedia([...DATA_MEDIA, ...mediaList.reverse()]);
 
         // Identificar el último juego jugado
+        const allFormatted = [...gamesList, ...mediaList];
         const latest = allFormatted.filter(i => i.lastPlayed).sort((a: any, b: any) => b.lastPlayed - a.lastPlayed)[0];
         if (latest) {
           setLastPlayedGame(latest);
         }
-      }).catch(console.error);
+      });
     }
   };
 
@@ -1241,16 +1234,15 @@ export default function ConsoleHome() {
         onClose={() => setDetailVisible(false)}
         onRefresh={loadApps}
         onLaunch={(id, path) => {
-          console.log('Launching game:', id, path);
+          if (path.startsWith('http')) {
+            Linking.openURL(path);
+            return;
+          }
           if (Platform.OS === 'web' && (window as any).electronAPI) {
             setIsLaunching(true);
             (window as any).electronAPI.launchApp(id, path).then(() => {
-              console.log('App launched successfully');
               loadApps();
-              setTimeout(() => {
-                setIsLaunching(false);
-                console.log('isLaunching set to false');
-              }, 4000);
+              setTimeout(() => setIsLaunching(false), 4000);
             });
           }
         }}
@@ -1262,6 +1254,10 @@ export default function ConsoleHome() {
         favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
         onLaunch={(item) => {
+          if (item.path?.startsWith('http')) {
+            Linking.openURL(item.path);
+            return;
+          }
           if (item.path && Platform.OS === 'web' && (window as any).electronAPI) {
             setIsLaunching(true);
             (window as any).electronAPI.launchApp(item.id, item.path).then(() => {
@@ -1300,14 +1296,30 @@ export default function ConsoleHome() {
               >
                 <Text style={styles.typeBtnText}>Media</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeBtn, newApp.type === 'web' && styles.typeBtnActive]}
+                onPress={() => setNewApp({ ...newApp, type: 'web' })}
+              >
+                <Text style={styles.typeBtnText}>Web</Text>
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.fileBtn} onPress={handleSelectExecutable}>
-              <Ionicons name="folder-open" size={20} color="#FFF" />
-              <Text style={styles.fileBtnText}>
-                {newApp.path ? 'Ruta: ...' + newApp.path.slice(-20) : 'Seleccionar Ejecutable (.exe)'}
-              </Text>
-            </TouchableOpacity>
+            {newApp.type === 'web' ? (
+              <TextInput
+                style={styles.input}
+                placeholder="URL (https://...)"
+                placeholderTextColor="#888"
+                value={newApp.path}
+                onChangeText={(text) => setNewApp({ ...newApp, path: text })}
+              />
+            ) : (
+              <TouchableOpacity style={styles.fileBtn} onPress={handleSelectExecutable}>
+                <Ionicons name="folder-open" size={20} color="#FFF" />
+                <Text style={styles.fileBtnText}>
+                  {newApp.path ? 'Ruta: ...' + newApp.path.slice(-20) : 'Seleccionar Ejecutable (.exe)'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.fileBtn} onPress={handleSelectImage}>
               <Ionicons name="image" size={20} color="#FFF" />
