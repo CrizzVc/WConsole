@@ -1,6 +1,8 @@
 
 
-<img src="docs/WConsola_video.mp4" width="1040px" height="400px">
+<video src="docs/WConsola_video.mp4" width="100%" controls autoplay loop muted>
+  Tu navegador no admite el elemento de video.
+</video>
 
 Para poder ejecutar este proyecto.
 
