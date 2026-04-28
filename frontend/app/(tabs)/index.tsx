@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Platform, Modal, TextInput, useWindowDimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ import { useUser } from '@/contexts/UserContext';
 import { Linking } from 'react-native';
 import { fetchGamingNews, NewsArticle } from '@/services/newsService';
 
-const TABS = ['Games', 'Media', 'eShop'];
+const TABS = ['Games', 'Media', 'Biblioteca'];
 
 export interface ConsoleItem {
   id: string;
@@ -66,6 +67,11 @@ export default function ConsoleHome() {
   const ITEM_WIDTH = CARD_SIZE + (8 * 2); // card width + horizontal margins
   const LEFT_PADDING = 50; // fixed left anchor position
   const RIGHT_PADDING = windowWidth - ITEM_WIDTH - LEFT_PADDING; // allows last item to reach left anchor
+
+  // Biblioteca Grid Dynamic Sizing
+  const LIBRARY_ITEM_WIDTH = 180;
+  const LIBRARY_GAP = 20;
+  const LIBRARY_COLS = Math.max(1, Math.floor((windowWidth - 100 + LIBRARY_GAP) / (LIBRARY_ITEM_WIDTH + LIBRARY_GAP)));
 
   // States for dynamic data and clock
   const [games, setGames] = useState<ConsoleItem[]>(DATA_GAMES);
@@ -126,7 +132,20 @@ export default function ConsoleHome() {
 
 
 
-  const currentData = activeTab === 'Games' ? games : (activeTab === 'Media' ? media : []);
+  const libraryData = games.filter(g => !g.isFolder && !g.isGrid && g.id !== '1' && g.id !== 'last_played');
+  
+  const GAMES_LIMIT = 10;
+  let currentData = activeTab === 'Games' ? games : (activeTab === 'Media' ? media : (activeTab === 'Biblioteca' ? libraryData : []));
+
+  if (activeTab === 'Games' && games.length > GAMES_LIMIT) {
+    currentData = games.slice(0, GAMES_LIMIT);
+    currentData.push({
+      id: 'more_library',
+      title: 'Ver Biblioteca',
+      time: 'Ver todos los juegos',
+      image: null,
+    } as any);
+  }
 
   // Reloj en tiempo real
   useEffect(() => {
@@ -166,8 +185,9 @@ export default function ConsoleHome() {
             lastPlayed: g.lastPlayed,
             youtubeId: g.youtubeId
           }));
-          setGames([...DATA_GAMES, ...formattedGames]);
-          allFormatted = [...allFormatted, ...formattedGames];
+          const sortedGames = [...formattedGames].reverse();
+          setGames([...DATA_GAMES, ...sortedGames]);
+          allFormatted = [...allFormatted, ...sortedGames];
         }
         if (data.media) {
           const formattedMedia = data.media.map((m: any) => ({
@@ -311,9 +331,21 @@ export default function ConsoleHome() {
             setFocusArea('main_carousel');
             setFocusIndex(activeIndex);
           } else if (focusArea === 'main_carousel') {
-            setFocusArea('bottom_news');
-            setFocusIndex(0);
-            mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
+            if (activeTab === 'Biblioteca') {
+              const nextIdx = activeIndex + LIBRARY_COLS;
+              if (nextIdx < currentData.length) {
+                setActiveIndex(nextIdx);
+                setFocusIndex(nextIdx);
+              } else {
+                setFocusArea('bottom_news');
+                setFocusIndex(0);
+                mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
+              }
+            } else {
+              setFocusArea('bottom_news');
+              setFocusIndex(0);
+              mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
+            }
           } else if (focusArea === 'bottom_news') {
             const nextIdx = focusIndex + 1;
             const maxIdx = news.length; // news items + back to top
@@ -345,8 +377,19 @@ export default function ConsoleHome() {
               mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
             }
           } else if (focusArea === 'main_carousel') {
-            setFocusArea('header_tabs');
-            setFocusIndex(TABS.indexOf(activeTab));
+            if (activeTab === 'Biblioteca') {
+              const nextIdx = activeIndex - LIBRARY_COLS;
+              if (nextIdx >= 0) {
+                setActiveIndex(nextIdx);
+                setFocusIndex(nextIdx);
+              } else {
+                setFocusArea('header_tabs');
+                setFocusIndex(TABS.indexOf(activeTab));
+              }
+            } else {
+              setFocusArea('header_tabs');
+              setFocusIndex(TABS.indexOf(activeTab));
+            }
           } else if (focusArea === 'header_tabs') {
             setFocusArea('header_user');
             setFocusIndex(0);
@@ -356,9 +399,15 @@ export default function ConsoleHome() {
 
         if (e.key === 'ArrowRight') {
           if (focusArea === 'main_carousel') {
-            const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
-            setActiveIndex(nextIdx);
-            setFocusIndex(nextIdx);
+            if (activeTab === 'Biblioteca') {
+              const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
+              setActiveIndex(nextIdx);
+              setFocusIndex(nextIdx);
+            } else {
+              const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
+              setActiveIndex(nextIdx);
+              setFocusIndex(nextIdx);
+            }
           } else if (focusArea === 'header_tabs') {
             const nextIdx = Math.min(focusIndex + 1, TABS.length - 1);
             setFocusIndex(nextIdx);
@@ -390,6 +439,12 @@ export default function ConsoleHome() {
           if (focusArea === 'main_carousel') {
             const item = currentData[activeIndex];
             if (item) {
+              if (item.id === 'more_library') {
+                setActiveTab('Biblioteca');
+                setActiveIndex(0);
+                setFocusArea('main_carousel');
+                return;
+              }
               if (item.isFolder || item.isGrid) {
                 setFavoritesVisible(true);
                 return;
@@ -456,6 +511,12 @@ export default function ConsoleHome() {
     setFocusIndex(index);
 
     if (activeIndex === index) {
+      if (item.id === 'more_library') {
+        setActiveTab('Biblioteca');
+        setActiveIndex(0);
+        setFocusArea('main_carousel');
+        return;
+      }
       if (activeTab === 'Games' && index === 0) {
         setHomeBgModalVisible(true);
         return;
@@ -695,30 +756,72 @@ export default function ConsoleHome() {
             </Text>
           </View>
 
-          <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
-              snapToInterval={ITEM_WIDTH}
-              snapToAlignment="start"
-              decelerationRate="fast"
-              scrollEventThrottle={16}
-              onLayout={() => {
-                if (scrollRef.current) {
-                  const scrollX = activeIndex * ITEM_WIDTH;
-                  scrollRef.current.scrollTo({ x: scrollX, animated: false });
-                }
-              }}
-            >
-              {currentData.map((item, index) => {
-                const isActive = index === activeIndex;
-                const cardContainerStyle = [
-                  styles.cardBase,
-                  { width: CARD_SIZE, height: CARD_SIZE },
-                  isActive && styles.cardActive
-                ];
+          <View style={[styles.carouselWrapper, { height: activeTab === 'Biblioteca' ? 'auto' : CARD_SIZE * 1.2 }]}>
+            {activeTab === 'Biblioteca' ? (
+              <View style={styles.libraryGridContainer}>
+                {currentData.map((item, index) => {
+                  const isActive = index === activeIndex;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => handleAppPress(index, item)}
+                      activeOpacity={0.9}
+                      style={[
+                        styles.libraryGridItem,
+                        isActive && styles.libraryGridItemActive
+                      ]}
+                    >
+                      <Image source={item.image} style={styles.libraryItemImage} contentFit="cover" />
+                      {isActive && (
+                        <View style={styles.libraryItemOverlay}>
+                          <Text numberOfLines={1} style={styles.libraryItemTitle}>{item.title}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                {currentData.length === 0 && (
+                  <View style={styles.libraryEmpty}>
+                    <Ionicons name="cart-outline" size={60} color="rgba(255,255,255,0.1)" />
+                    <Text style={styles.libraryEmptyText}>No hay juegos disponibles en la biblioteca aún.</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <ScrollView
+                ref={scrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
+                snapToInterval={ITEM_WIDTH}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                scrollEventThrottle={16}
+                onLayout={() => {
+                  if (scrollRef.current) {
+                    const scrollX = activeIndex * ITEM_WIDTH;
+                    scrollRef.current.scrollTo({ x: scrollX, animated: false });
+                  }
+                }}
+              >
+                {currentData.map((item, index) => {
+                  const isActive = index === activeIndex;
+                  const cardContainerStyle = [
+                    styles.cardBase,
+                    { width: CARD_SIZE, height: CARD_SIZE },
+                    isActive && styles.cardActive
+                  ];
+
+                  if (item.id === 'more_library') {
+                    return (
+                      <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                        <BlurView intensity={40} tint="dark" style={[styles.libraryBtnCard, cardContainerStyle]}>
+                          <MaterialCommunityIcons name="library-shelves" size={Math.round(60 * scale)} color={isActive ? "#00FFFF" : "#666"} />
+                          <Text style={[styles.libraryBtnText, { fontSize: Math.round(14 * scale) }]}>Ver Biblioteca</Text>
+                        </BlurView>
+                      </TouchableOpacity>
+                    );
+                  }
 
                 if (item.isGrid) {
                   return (
@@ -850,7 +953,8 @@ export default function ConsoleHome() {
                 );
               })}
             </ScrollView>
-          </View>
+          )}
+        </View>
 
           <View style={styles.activeSubtitleContainer}>
             <Text style={styles.activeSubtitle}>
@@ -1375,6 +1479,76 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 255, 255, 0.2)',
     borderRadius: 8,
     paddingHorizontal: 10,
+  },
+  // Biblioteca Grid Styles
+  libraryGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 50,
+    gap: 20,
+    justifyContent: 'flex-start',
+  },
+  libraryGridItem: {
+    width: 180,
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  libraryGridItemActive: {
+    borderColor: '#00FFFF',
+    transform: [{ scale: 1.05 }],
+    zIndex: 10,
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  libraryItemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  libraryItemOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 8,
+  },
+  libraryItemTitle: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  libraryEmpty: {
+    flex: 1,
+    height: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  libraryEmptyText: {
+    color: '#666',
+    fontSize: 16,
+    marginTop: 15,
+    fontStyle: 'italic',
+  },
+  libraryBtnCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  libraryBtnText: {
+    color: '#FFF',
+    marginTop: 10,
+    fontWeight: '600',
   },
 });
 
