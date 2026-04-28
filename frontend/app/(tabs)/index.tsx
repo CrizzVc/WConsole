@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput, Button } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GameDetailView from '@/components/GameDetailView';
+import { useUser } from '@/contexts/UserContext';
 
 const TABS = ['Games', 'Media', 'eShop'];
 
@@ -36,6 +37,7 @@ const DATA_MEDIA: ConsoleItem[] = [
 ];
 
 export default function ConsoleHome() {
+  const { activeUser, changeUser } = useUser();
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef<ScrollView>(null);
@@ -209,15 +211,17 @@ export default function ConsoleHome() {
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={[styles.avatarContainer, styles.avatarActive]}>
-            <Image source={{ uri: 'https://i.pravatar.cc/100?img=11' }} style={styles.avatar} />
-          </View>
-          <View style={styles.avatarContainer}>
-            <Image source={{ uri: 'https://i.pravatar.cc/100?img=12' }} style={styles.avatar} />
-          </View>
-          <View style={styles.iconButton}>
-            <Ionicons name="game-controller-outline" size={24} color="#CCC" />
-          </View>
+          <TouchableOpacity
+            onPress={changeUser}
+            style={[styles.avatarContainer, styles.avatarActive, activeUser ? { borderColor: activeUser.color } : {}]}
+            activeOpacity={0.75}
+          >
+            {activeUser ? (
+              <Image source={{ uri: activeUser.avatar }} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person" size={22} color="#CCC" />
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.headerCenter}>
@@ -339,7 +343,6 @@ export default function ConsoleHome() {
           <TouchableOpacity onPress={() => setAddModalVisible(true)} style={styles.footerBtn}>
             <Text style={styles.footerHint}><Text style={styles.btnIcon}> + </Text> Añadir App</Text>
           </TouchableOpacity>
-          <Text style={styles.footerHint}><Text style={styles.btnIcon}> Y </Text> Change User</Text>
           <Text style={styles.footerHint}><Text style={styles.btnIcon}> X </Text> Close Software</Text>
           <Text style={styles.footerHint}><Text style={styles.btnIcon}> A </Text> Start/Select</Text>
         </View>
