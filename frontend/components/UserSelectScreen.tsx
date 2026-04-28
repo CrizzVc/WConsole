@@ -140,7 +140,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
           const newUser: UserProfile = {
             id: Date.now().toString(),
             name: `Player ${users.length + 1}`,
-            avatar: `https://i.pravatar.cc/200?img=${Math.floor(Math.random() * 70)}`,
+            avatar: 'assets/images/userDefault.jpeg',
             color: '#FFCC00'
           };
           const newList = [...users, newUser];
