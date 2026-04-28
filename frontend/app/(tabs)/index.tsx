@@ -52,7 +52,7 @@ export default function ConsoleHome() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Focus management
-  type FocusArea = 'header_user' | 'header_tabs' | 'main_carousel' | 'bottom_news' | 'footer';
+  type FocusArea = 'header_user' | 'header_tabs' | 'main_carousel' | 'widgets_row' | 'bottom_news' | 'footer';
   const [focusArea, setFocusArea] = useState<FocusArea>('main_carousel');
   const [focusIndex, setFocusIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -79,6 +79,7 @@ export default function ConsoleHome() {
   const [lastPlayedGame, setLastPlayedGame] = useState<ConsoleItem | null>(null);
   const [currentTime, setCurrentTime] = useState('');
   const [news, setNews] = useState<NewsArticle[]>([]);
+  const [gamepadInfo, setGamepadInfo] = useState({ connected: false, name: '', battery: 0 });
 
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -249,6 +250,15 @@ export default function ConsoleHome() {
           else if (buttons[15]?.pressed || gp.axes[0] > 0.5) dispatch('ArrowRight');
         }
 
+        // Update Gamepad State for Widgets
+        if (!gamepadInfo.connected || gamepadInfo.name !== gp.id) {
+          setGamepadInfo({ 
+            connected: true, 
+            name: gp.id, 
+            battery: 0.75 // Simulated battery for UI demonstration
+          });
+        }
+
         // Buttons (One-shot)
         const checkButton = (idx: number, key: string) => {
           if (buttons[idx]?.pressed && !prevButtons[idx]) dispatch(key);
@@ -337,15 +347,19 @@ export default function ConsoleHome() {
                 setActiveIndex(nextIdx);
                 setFocusIndex(nextIdx);
               } else {
-                setFocusArea('bottom_news');
+                setFocusArea('widgets_row');
                 setFocusIndex(0);
                 mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
               }
             } else {
-              setFocusArea('bottom_news');
+              setFocusArea('widgets_row');
               setFocusIndex(0);
               mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
             }
+          } else if (focusArea === 'widgets_row') {
+            setFocusArea('bottom_news');
+            setFocusIndex(0);
+            mainVerticalScrollRef.current?.scrollTo({ y: 550, animated: true });
           } else if (focusArea === 'bottom_news') {
             const nextIdx = focusIndex + 1;
             const maxIdx = news.length; // news items + back to top
@@ -370,12 +384,16 @@ export default function ConsoleHome() {
             const nextIdx = focusIndex - 1;
             if (nextIdx >= 0) {
               setFocusIndex(nextIdx);
-              mainVerticalScrollRef.current?.scrollTo({ y: 350 + nextIdx * 140, animated: true });
+              mainVerticalScrollRef.current?.scrollTo({ y: 550 + nextIdx * 140, animated: true });
             } else {
-              setFocusArea('main_carousel');
-              setFocusIndex(activeIndex);
-              mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
+              setFocusArea('widgets_row');
+              setFocusIndex(0);
+              mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
             }
+          } else if (focusArea === 'widgets_row') {
+            setFocusArea('main_carousel');
+            setFocusIndex(activeIndex);
+            mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
           } else if (focusArea === 'main_carousel') {
             if (activeTab === 'Biblioteca') {
               const nextIdx = activeIndex - LIBRARY_COLS;
@@ -408,6 +426,8 @@ export default function ConsoleHome() {
               setActiveIndex(nextIdx);
               setFocusIndex(nextIdx);
             }
+          } else if (focusArea === 'widgets_row') {
+            setFocusIndex((prev) => Math.min(prev + 1, 2)); // 3 widgets total
           } else if (focusArea === 'header_tabs') {
             const nextIdx = Math.min(focusIndex + 1, TABS.length - 1);
             setFocusIndex(nextIdx);
@@ -424,6 +444,8 @@ export default function ConsoleHome() {
             const nextIdx = Math.max(activeIndex - 1, 0);
             setActiveIndex(nextIdx);
             setFocusIndex(nextIdx);
+          } else if (focusArea === 'widgets_row') {
+            setFocusIndex((prev) => Math.max(prev - 1, 0));
           } else if (focusArea === 'header_tabs') {
             const nextIdx = Math.max(focusIndex - 1, 0);
             setFocusIndex(nextIdx);
@@ -962,6 +984,80 @@ export default function ConsoleHome() {
             </Text>
           </View>
         </Animated.View>
+
+        {/* WIDGETS ROW */}
+        <View style={styles.widgetsRowContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.widgetsScrollContent}>
+            {/* WIDGET 1: CONTROLLER */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[
+                styles.widgetCard,
+                (focusArea === 'widgets_row' && focusIndex === 0) && styles.widgetCardFocused
+              ]}
+            >
+              <BlurView intensity={30} tint="dark" style={styles.widgetBlur}>
+                <View style={styles.widgetHeader}>
+                  <MaterialCommunityIcons name={gamepadInfo.connected ? "controller-classic" : "controller-classic-off"} size={24} color={gamepadInfo.connected ? "#00FFFF" : "#666"} />
+                  <Text style={styles.widgetTitle}>CONTROL</Text>
+                </View>
+                <View style={styles.widgetContent}>
+                  <Text style={styles.widgetMainText} numberOfLines={1}>{gamepadInfo.connected ? gamepadInfo.name.split('(')[0].trim() : 'No conectado'}</Text>
+                  <View style={styles.widgetStatusRow}>
+                    <Ionicons name={gamepadInfo.connected ? "battery-charging" : "battery-dead"} size={16} color={gamepadInfo.connected ? "#00FF00" : "#666"} />
+                    <Text style={styles.widgetStatusText}>{gamepadInfo.connected ? '75%' : '---'}</Text>
+                    <Text style={styles.widgetSubText}>{gamepadInfo.connected ? 'INALÁMBRICO' : 'ESPERANDO...'}</Text>
+                  </View>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
+
+            {/* WIDGET 2: SCREENSHOTS */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[
+                styles.widgetCard,
+                (focusArea === 'widgets_row' && focusIndex === 1) && styles.widgetCardFocused
+              ]}
+            >
+              <BlurView intensity={30} tint="dark" style={styles.widgetBlur}>
+                <View style={styles.widgetHeader}>
+                  <MaterialCommunityIcons name="camera" size={24} color="#A78BFA" />
+                  <Text style={styles.widgetTitle}>CAPTURAS</Text>
+                </View>
+                <View style={styles.widgetContent}>
+                   <View style={styles.screenshotPreview}>
+                      <Ionicons name="images" size={30} color="rgba(255,255,255,0.1)" />
+                   </View>
+                   <Text style={styles.widgetSubText}>12 NUEVAS CAPTURAS</Text>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
+
+            {/* WIDGET 3: STORAGE */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[
+                styles.widgetCard,
+                (focusArea === 'widgets_row' && focusIndex === 2) && styles.widgetCardFocused
+              ]}
+            >
+              <BlurView intensity={30} tint="dark" style={styles.widgetBlur}>
+                <View style={styles.widgetHeader}>
+                  <MaterialCommunityIcons name="harddisk" size={24} color="#FBBF24" />
+                  <Text style={styles.widgetTitle}>ALMACENAMIENTO</Text>
+                </View>
+                <View style={styles.widgetContent}>
+                   <View style={styles.storageBarContainer}>
+                      <View style={[styles.storageBar, { width: '65%' }]} />
+                   </View>
+                   <Text style={styles.widgetMainText}>65% LLENO</Text>
+                   <Text style={styles.widgetSubText}>234 GB DISPONIBLES</Text>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
 
         {/* BOTTOM NEWS SECTION (VERTICAL) */}
         <View style={styles.newsContainerVertical}>
@@ -1549,6 +1645,91 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginTop: 10,
     fontWeight: '600',
+  },
+  // Widgets Styles
+  widgetsRowContainer: {
+    marginTop: 30,
+    height: 160,
+  },
+  widgetsScrollContent: {
+    paddingHorizontal: 50,
+    gap: 20,
+    alignItems: 'center',
+  },
+  widgetCard: {
+    width: 280,
+    height: 140,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  widgetCardFocused: {
+    borderColor: '#00FFFF',
+    borderWidth: 2,
+    transform: [{ scale: 1.02 }],
+  },
+  widgetBlur: {
+    flex: 1,
+    padding: 15,
+  },
+  widgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  widgetTitle: {
+    color: '#888',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  widgetContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  widgetMainText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  widgetStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  widgetStatusText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  widgetSubText: {
+    color: '#666',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  screenshotPreview: {
+    height: 60,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  storageBarContainer: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  storageBar: {
+    height: '100%',
+    backgroundColor: '#00FFFF',
+    borderRadius: 3,
   },
 });
 
