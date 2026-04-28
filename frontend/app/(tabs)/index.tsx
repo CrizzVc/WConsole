@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GameDetailView from '@/components/GameDetailView';
 import { useUser } from '@/contexts/UserContext';
@@ -41,8 +41,14 @@ export default function ConsoleHome() {
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(1);
   const scrollRef = useRef<ScrollView>(null);
-  const { width: windowWidth } = Dimensions.get('window');
-  const ITEM_WIDTH = 220 + (8 * 2); // card width + horizontal margins
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  
+  // Dynamic sizing based on window width
+  const baseCardSize = 220;
+  // Simple scaling logic: base on 1000px width, but clamped
+  const scale = Math.min(Math.max(windowWidth / 1100, 0.85), 1.4);
+  const CARD_SIZE = Math.round(baseCardSize * scale);
+  const ITEM_WIDTH = CARD_SIZE + (8 * 2); // card width + horizontal margins
   const LEFT_PADDING = 50; // fixed left anchor position
   const RIGHT_PADDING = windowWidth - ITEM_WIDTH - LEFT_PADDING; // allows last item to reach left anchor
 
@@ -54,6 +60,7 @@ export default function ConsoleHome() {
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [newApp, setNewApp] = useState({ title: '', path: '', image: '', type: 'game' });
+  const [isSaving, setIsSaving] = useState(false);
 
   // States for Game Detail View
   const [isDetailVisible, setDetailVisible] = useState(false);
@@ -190,11 +197,15 @@ export default function ConsoleHome() {
 
   // Auto-scroll: with dynamic padding the active item always lands at the screen center
   useEffect(() => {
-    if (scrollRef.current) {
-      const scrollX = activeIndex * ITEM_WIDTH;
-      scrollRef.current.scrollTo({ x: scrollX, animated: true });
-    }
-  }, [activeIndex, activeTab, ITEM_WIDTH]);
+    // Usamos un pequeño delay o requestAnimationFrame para asegurar que el layout se haya actualizado
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        const scrollX = activeIndex * ITEM_WIDTH;
+        scrollRef.current.scrollTo({ x: scrollX, animated: true });
+      }
+    }, 10);
+    return () => clearTimeout(timer);
+  }, [activeIndex, activeTab, ITEM_WIDTH, windowWidth]);
 
   const handleAppPress = (index: number, item: ConsoleItem) => {
     if (activeIndex === index) {
@@ -222,13 +233,31 @@ export default function ConsoleHome() {
   };
 
   const handleSaveApp = async () => {
-    if ((window as any).electronAPI && newApp.title && newApp.path && newApp.image) {
-      await (window as any).electronAPI.saveApp(newApp);
+    if ((window as any).electronAPI && newApp.title && newApp.path) {
+      setIsSaving(true);
+      let appToSave = { ...newApp };
+
+      // Si no hay imagen y es un juego, intentar buscar en SteamGridDB
+      if (!appToSave.image && appToSave.type === 'game') {
+        try {
+          const res = await (window as any).electronAPI.fetchSteamGridData(appToSave.title);
+          if (res.success && res.data) {
+            if (res.data.grid) appToSave.image = res.data.grid;
+            if (res.data.hero) (appToSave as any).backgroundImage = res.data.hero;
+            if (res.data.logo) (appToSave as any).logo = res.data.logo;
+          }
+        } catch (error) {
+          console.error('Error fetching SteamGrid data:', error);
+        }
+      }
+
+      await (window as any).electronAPI.saveApp(appToSave);
+      setIsSaving(false);
       setAddModalVisible(false);
       setNewApp({ title: '', path: '', image: '', type: 'game' });
       loadApps(); // Reload DB to update list
     } else {
-      alert('Por favor completa todos los campos.');
+      alert('Por favor completa el título y la ruta del ejecutable.');
     }
   };
 
@@ -273,20 +302,31 @@ export default function ConsoleHome() {
       <View style={styles.mainContent}>
         <View style={styles.activeTitleContainer}>
           <View style={styles.cartridgeIcon} />
-          <Text style={styles.activeTitle}>{currentData[activeIndex]?.title}</Text>
+          <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>{currentData[activeIndex]?.title}</Text>
         </View>
 
-        <View style={styles.carouselWrapper}>
+        <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
           <ScrollView
             ref={scrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
+            snapToInterval={ITEM_WIDTH}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            scrollEventThrottle={16}
+            onLayout={() => {
+              if (scrollRef.current) {
+                const scrollX = activeIndex * ITEM_WIDTH;
+                scrollRef.current.scrollTo({ x: scrollX, animated: false });
+              }
+            }}
           >
             {currentData.map((item, index) => {
               const isActive = index === activeIndex;
               const cardContainerStyle = [
                 styles.cardBase,
+                { width: CARD_SIZE, height: CARD_SIZE },
                 isActive && styles.cardActive
               ];
 
@@ -427,16 +467,24 @@ export default function ConsoleHome() {
             <TouchableOpacity style={styles.fileBtn} onPress={handleSelectImage}>
               <Ionicons name="image" size={20} color="#FFF" />
               <Text style={styles.fileBtnText}>
-                {newApp.image ? 'Portada: ...' + newApp.image.slice(-20) : 'Seleccionar Portada (Imagen)'}
+                {newApp.image ? 'Portada: ...' + newApp.image.slice(-20) : 'Portada (Opcional - Auto-fetch)'}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setAddModalVisible(false)}>
+              <TouchableOpacity 
+                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }]} 
+                onPress={() => !isSaving && setAddModalVisible(false)}
+                disabled={isSaving}
+              >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveApp}>
-                <Text style={styles.saveBtnText}>Guardar</Text>
+              <TouchableOpacity 
+                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }]} 
+                onPress={handleSaveApp}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveBtnText}>{isSaving ? 'Buscando assets...' : 'Guardar'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -543,9 +591,9 @@ const styles = StyleSheet.create({
   activeTitleContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 50, marginBottom: 15, height: 30 },
   cartridgeIcon: { width: 12, height: 16, backgroundColor: '#00FFFF', marginRight: 10, borderRadius: 2 },
   activeTitle: { color: '#00FFFF', fontSize: 22, fontWeight: '300', letterSpacing: 0.5 },
-  carouselWrapper: { height: 250 },
+  carouselWrapper: { },
   // scrollContent padding is applied inline via HORIZONTAL_PADDING (dynamic, not in StyleSheet)
-  cardBase: { width: 220, height: 220, borderRadius: 12, marginHorizontal: 8, borderWidth: 4, borderColor: 'transparent' },
+  cardBase: { borderRadius: 12, marginHorizontal: 8, borderWidth: 4, borderColor: 'transparent' },
   cardActive: { borderColor: '#00FFFF', transform: [{ scale: 1.08 }], zIndex: 10 },
   cardImage: { resizeMode: 'cover' },
   gridContainer: { backgroundColor: '#111', padding: 6, justifyContent: 'space-between' },
