@@ -1236,7 +1236,7 @@ const styles = StyleSheet.create({
   newsTitlePremium: { color: '#FFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
   newsLoadingContainer: { height: 120, justifyContent: 'center', alignItems: 'center', width: 240 },
   newsLoadingText: { color: '#666', fontSize: 12, fontStyle: 'italic' },
-  newsContainerVertical: { marginTop: 40, maxWidth: 900, paddingBottom: 20 },
+  newsContainerVertical: { marginTop: 40, width: '40%', paddingBottom: 20 },
   newsListVertical: { paddingHorizontal: 50, gap: 15 },
   newsCardVertical: {
     width: '100%',
