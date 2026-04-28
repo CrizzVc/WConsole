@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, SafeAreaView, Dimensions, Platform, Modal, TextInput, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Platform, Modal, TextInput, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GameDetailView from '@/components/GameDetailView';
 import { useUser } from '@/contexts/UserContext';
@@ -26,7 +28,6 @@ const DATA_GAMES: ConsoleItem[] = [
   { id: '2', title: 'Pokémon Legends: Arceus', time: 'TODAY 2.3 H - TOTAL 17.9 H', image: require('@/assets/images/game_adventure.png'), description: 'Explora la antigua región de Hisui en este innovador juego de acción-RPG. Captura, estudia y lucha con Pokémon como nunca antes en la historia de la saga.', rating: 4.9 },
   { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
-  { id: '5', title: 'ENCODYA', time: 'TODAY 0.5 H - TOTAL 2.1 H', image: require('@/assets/images/game_cyberpunk.png'), description: 'Una aventura gráfica de ciencia ficción ambientada en el Neo-Berlín de 2062. Sigue a Tina y su robot SAM-53 en una historia emotiva y llena de humor.', rating: 4.5 },
 ];
 
 const DATA_MEDIA: ConsoleItem[] = [
@@ -39,10 +40,10 @@ const DATA_MEDIA: ConsoleItem[] = [
 export default function ConsoleHome() {
   const { activeUser, changeUser } = useUser();
   const [activeTab, setActiveTab] = useState('Games');
-  const [activeIndex, setActiveIndex] = useState(1);
+  const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  
+
   // Dynamic sizing based on window width
   const baseCardSize = 220;
   // Simple scaling logic: base on 1000px width, but clamped
@@ -69,6 +70,12 @@ export default function ConsoleHome() {
   const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
   const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
   const [homeBackground, setHomeBackground] = useState<any>(null);
+  
+  // Background transition states
+  const [bgA, setBgA] = useState<any>(null);
+  const [bgB, setBgB] = useState<any>(null);
+  const [activeLayer, setActiveLayer] = useState<'A' | 'B'>('A');
+  const fade = useSharedValue(0);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -295,21 +302,56 @@ export default function ConsoleHome() {
     }
   };
 
-  const currentBg = (activeTab === 'Games' && activeIndex === 0 && homeBackground) 
-    ? homeBackground 
+  const currentBg = (activeTab === 'Games' && activeIndex === 0 && homeBackground)
+    ? homeBackground
     : currentData[activeIndex]?.backgroundImage;
 
+  // Trigger crossfade when currentBg changes
+  useEffect(() => {
+    if (activeLayer === 'A') {
+      if (currentBg !== bgA) {
+        setBgB(currentBg);
+        setActiveLayer('B');
+        fade.value = withTiming(1, { duration: 800 });
+      }
+    } else {
+      if (currentBg !== bgB) {
+        setBgA(currentBg);
+        setActiveLayer('A');
+        fade.value = withTiming(0, { duration: 800 });
+      }
+    }
+  }, [currentBg]);
+
+  // Initial load
+  useEffect(() => {
+    if (currentBg && !bgA && !bgB) setBgA(currentBg);
+  }, []);
+
+  const animatedStyleB = useAnimatedStyle(() => ({
+    opacity: fade.value,
+  }));
   return (
     <SafeAreaView style={styles.container}>
-      {/* BACKGROUND DINÁMICO */}
-      {currentBg && (
-        <Image 
-          source={currentBg} 
-          key={currentBg?.uri || (typeof currentBg === 'number' ? currentBg : 'bg')}
-          style={StyleSheet.absoluteFillObject} 
-          resizeMode="cover"
-        />
-      )}
+      {/* BACKGROUND DINÁMICO (Dual Layer Crossfade) */}
+      <View style={StyleSheet.absoluteFill}>
+        {bgA && (
+          <Image
+            source={bgA}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+          />
+        )}
+        <Animated.View style={[StyleSheet.absoluteFill, animatedStyleB]}>
+          {bgB && (
+            <Image
+              source={bgB}
+              style={StyleSheet.absoluteFillObject}
+              contentFit="cover"
+            />
+          )}
+        </Animated.View>
+      </View>
       {/* OVERLAY PARA LEGIBILIDAD (Solo si hay fondo) */}
       {currentBg && (
         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
@@ -523,15 +565,15 @@ export default function ConsoleHome() {
             </TouchableOpacity>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }]} 
+              <TouchableOpacity
+                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }]}
                 onPress={() => !isSaving && setAddModalVisible(false)}
                 disabled={isSaving}
               >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }]} 
+              <TouchableOpacity
+                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }]}
                 onPress={handleSaveApp}
                 disabled={isSaving}
               >
@@ -557,8 +599,8 @@ export default function ConsoleHome() {
             </TouchableOpacity>
 
             {homeBackground && (
-              <TouchableOpacity 
-                style={[styles.fileBtn, { backgroundColor: '#442222' }]} 
+              <TouchableOpacity
+                style={[styles.fileBtn, { backgroundColor: '#442222' }]}
                 onPress={() => {
                   setHomeBackground(null);
                   localStorage.removeItem('home_background');
@@ -579,38 +621,38 @@ export default function ConsoleHome() {
         </View>
       </Modal>
       <Modal visible={isUserModalVisible} transparent animationType="fade">
-        <TouchableOpacity 
-          style={styles.userModalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.userModalOverlay}
+          activeOpacity={1}
           onPress={() => setUserModalVisible(false)}
         >
           <View style={styles.userModalContent}>
             {/* Header User Profile */}
             <View style={styles.userModalHeader}>
-              <Ionicons name="person-outline" size={16} color="#E0E0FF" style={{marginRight: 8}} />
+              <Ionicons name="person-outline" size={16} color="#E0E0FF" style={{ marginRight: 8 }} />
               <Text style={styles.userModalHeaderName}>{activeUser?.name || 'Invitado'}@WConsole</Text>
             </View>
 
             {/* Power Buttons */}
             <View style={styles.powerButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]} 
+              <TouchableOpacity
+                style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]}
                 activeOpacity={0.8}
                 onPress={() => setModalSelectedIndex(0)}
               >
                 <Ionicons name="lock-closed-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]} 
+
+              <TouchableOpacity
+                style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]}
                 activeOpacity={0.8}
                 onPress={() => setModalSelectedIndex(1)}
               >
                 <Ionicons name="log-out-outline" size={48} color={modalSelectedIndex === 1 ? styles.powerIconActive.color : styles.powerIcon.color} />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]} 
+              <TouchableOpacity
+                style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]}
                 activeOpacity={0.8}
                 onPress={() => {
                   setModalSelectedIndex(2);
@@ -621,8 +663,8 @@ export default function ConsoleHome() {
                 <Ionicons name="sync-outline" size={48} color={modalSelectedIndex === 2 ? styles.powerIconActive.color : styles.powerIcon.color} />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]} 
+              <TouchableOpacity
+                style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]}
                 activeOpacity={0.8}
                 onPress={() => {
                   setModalSelectedIndex(3);
@@ -677,7 +719,7 @@ const styles = StyleSheet.create({
   activeTitleContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 50, marginBottom: 15, height: 30 },
   cartridgeIcon: { width: 12, height: 16, backgroundColor: '#00FFFF', marginRight: 10, borderRadius: 2 },
   activeTitle: { color: '#00FFFF', fontSize: 22, fontWeight: '300', letterSpacing: 0.5 },
-  carouselWrapper: { },
+  carouselWrapper: {},
   // scrollContent padding is applied inline via HORIZONTAL_PADDING (dynamic, not in StyleSheet)
   cardBase: { borderRadius: 12, marginHorizontal: 8, borderWidth: 4, borderColor: 'transparent' },
   cardActive: { borderColor: '#00FFFF', transform: [{ scale: 1.08 }], zIndex: 10 },

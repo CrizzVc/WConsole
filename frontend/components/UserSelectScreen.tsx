@@ -9,7 +9,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 export interface UserProfile {
@@ -30,13 +30,11 @@ const DEFAULT_USERS: UserProfile[] = [
 
 export default function UserSelectScreen({ onUserSelected }: UserSelectScreenProps) {
   const [users] = useState<UserProfile[]>(DEFAULT_USERS);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(users[0].id);
+  const [homeBg, setHomeBg] = useState<string | null>(null);
+  const [time, setTime] = useState('');
 
-  // Animated values for each card
-  const scaleAnims = useRef(users.map(() => new Animated.Value(1))).current;
-  const glowAnims = useRef(users.map(() => new Animated.Value(0))).current;
-
-  // Background pulse animation
+  // Background pulse animation for fallback
   const bgPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -46,23 +44,58 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         Animated.timing(bgPulse, { toValue: 0, duration: 4000, useNativeDriver: false }),
       ])
     ).start();
-  }, []);
 
-  const handleHoverIn = (index: number) => {
-    setHoveredId(users[index].id);
-    Animated.parallel([
-      Animated.spring(scaleAnims[index], { toValue: 1.08, useNativeDriver: true, speed: 20 }),
-      Animated.timing(glowAnims[index], { toValue: 1, duration: 200, useNativeDriver: false }),
-    ]).start();
-  };
+    // Fetch background
+    if (Platform.OS === 'web') {
+      const savedBg = localStorage.getItem('home_background');
+      if (savedBg) setHomeBg(savedBg);
+    }
 
-  const handleHoverOut = (index: number) => {
-    setHoveredId(null);
-    Animated.parallel([
-      Animated.spring(scaleAnims[index], { toValue: 1, useNativeDriver: true, speed: 20 }),
-      Animated.timing(glowAnims[index], { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
-  };
+    // Clock
+    const updateTime = () => {
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      setTime(`${hours}:${minutes} ${ampm}`);
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    // Keyboard Navigation
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const totalItems = users.length + 1; // +1 for Add User
+      const allIds = ['add', ...users.map(u => u.id)];
+      const currentIndex = allIds.indexOf(hoveredId || 'add');
+
+      if (e.key === 'ArrowRight') {
+        const nextIndex = (currentIndex + 1) % totalItems;
+        setHoveredId(allIds[nextIndex]);
+      } else if (e.key === 'ArrowLeft') {
+        const nextIndex = (currentIndex - 1 + totalItems) % totalItems;
+        setHoveredId(allIds[nextIndex]);
+      } else if (e.key === 'Enter') {
+        if (hoveredId === 'add') {
+          // Add user logic
+        } else {
+          const user = users.find(u => u.id === hoveredId);
+          if (user) handleSelect(user);
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (Platform.OS === 'web') {
+        window.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+  }, [hoveredId, users]);
 
   const handleSelect = (user: UserProfile) => {
     onUserSelected(user);
@@ -75,106 +108,99 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
 
   return (
     <View style={styles.container}>
-      {/* Animated background gradient layer */}
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgInterpolate }]} />
+      {/* BACKGROUND LAYER */}
+      {homeBg ? (
+        <Image 
+          source={{ uri: homeBg }} 
+          style={styles.blurredBg} 
+          blurRadius={40}
+        />
+      ) : (
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgInterpolate }]} />
+      )}
+      
+      {/* DARK OVERLAY */}
+      <View style={styles.overlay} />
 
-      {/* Background decorative circles */}
-      <View style={[styles.bgCircle, styles.bgCircle1]} />
-      <View style={[styles.bgCircle, styles.bgCircle2]} />
-      <View style={[styles.bgCircle, styles.bgCircle3]} />
-
-      {/* Top logo area */}
-      <View style={styles.logoArea}>
-        <Ionicons name="game-controller" size={32} color="#00D4FF" />
-        <Text style={styles.logoText}>W<Text style={styles.logoBold}>Console</Text></Text>
+      {/* TOP RIGHT CLOCK */}
+      <View style={styles.topRight}>
+        <Text style={styles.timeText}>{time}</Text>
       </View>
 
-      {/* Title */}
+      {/* CENTERED TITLES */}
       <View style={styles.titleArea}>
-        <Text style={styles.title}>¿Quién está jugando?</Text>
-        <Text style={styles.subtitle}>Selecciona tu perfil para continuar</Text>
+        <Text style={styles.title}>Welcome Back to WConsole</Text>
+        <Text style={styles.subtitle}>Who's playing today?</Text>
       </View>
 
-      {/* User Cards Row */}
+      {/* USER LIST */}
       <View style={styles.cardsRow}>
+        {/* ADD USER BUTTON */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.cardWrapper}
+          onPress={() => {}}
+          {...(Platform.OS === 'web' ? {
+            onMouseEnter: () => setHoveredId('add'),
+            onMouseLeave: () => setHoveredId(null)
+          } : {})}
+        >
+          <View style={[styles.card, hoveredId === 'add' && styles.cardFocused]}>
+            <View style={styles.addIconCircle}>
+              <Ionicons name="add" size={40} color="#FFF" />
+            </View>
+          </View>
+          <Text style={styles.userName}>Add User</Text>
+        </TouchableOpacity>
+
         {users.map((user, index) => {
-          const glowColor = glowAnims[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: ['rgba(0,0,0,0)', user.color + '66'],
-          });
-          const borderColor = glowAnims[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: ['rgba(255,255,255,0.1)', user.color],
-          });
-
+          const isFocused = hoveredId === user.id;
           return (
-            <Animated.View
+            <TouchableOpacity
               key={user.id}
-              style={[
-                styles.cardWrapper,
-                { transform: [{ scale: scaleAnims[index] }] },
-              ]}
+              activeOpacity={0.8}
+              style={styles.cardWrapper}
+              onPress={() => handleSelect(user)}
+              {...(Platform.OS === 'web' ? {
+                onMouseEnter: () => setHoveredId(user.id),
+                onMouseLeave: () => setHoveredId(null)
+              } : {})}
             >
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => handleSelect(user)}
-                onPressIn={() => handleHoverIn(index)}
-                onPressOut={() => handleHoverOut(index)}
-                // Web hover support
-                {...(Platform.OS === 'web'
-                  ? {
-                      onMouseEnter: () => handleHoverIn(index),
-                      onMouseLeave: () => handleHoverOut(index),
-                    }
-                  : {})}
-              >
-                {/* Glow shadow layer */}
-                <Animated.View
-                  style={[styles.cardGlow, { backgroundColor: glowColor, shadowColor: user.color }]}
-                />
-
-                {/* Card glass panel */}
-                <Animated.View style={[styles.card, { borderColor }]}>
-                  {/* Avatar */}
-                  <View style={[styles.avatarRing, { borderColor: user.color }]}>
-                    <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
-                  </View>
-
-                  {/* Name */}
-                  <Text style={styles.userName}>{user.name}</Text>
-
-                  {/* Color accent dot */}
-                  <View style={[styles.colorDot, { backgroundColor: user.color }]} />
-                </Animated.View>
-              </TouchableOpacity>
-            </Animated.View>
+              {isFocused && (
+                <View style={styles.focusIndicator}>
+                  <Ionicons name="game-controller" size={18} color="#FFF" />
+                </View>
+              )}
+              <View style={[
+                styles.card, 
+                isFocused && styles.cardFocused,
+                isFocused && { borderColor: '#FFF', borderWidth: 3 }
+              ]}>
+                <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+              </View>
+              <Text style={[styles.userName, isFocused && styles.userNameFocused]}>{user.name}</Text>
+              {isFocused && (
+                <View style={styles.optionsHint}>
+                  <MaterialCommunityIcons name="menu" size={16} color="#FFF" />
+                  <Text style={styles.optionsText}>Options</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           );
         })}
-
-        {/* Add User Card */}
-        <Animated.View style={styles.cardWrapper}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.addCard}
-            {...(Platform.OS === 'web'
-              ? {
-                  onMouseEnter: () => {},
-                  onMouseLeave: () => {},
-                }
-              : {})}
-          >
-            <View style={styles.addIconCircle}>
-              <Ionicons name="add" size={36} color="#00D4FF" />
-            </View>
-            <Text style={styles.addUserText}>Añadir Usuario</Text>
-          </TouchableOpacity>
-        </Animated.View>
       </View>
 
-      {/* Bottom hint */}
-      <View style={styles.hintRow}>
-        <View style={styles.hintKey}><Text style={styles.hintKeyText}>A</Text></View>
-        <Text style={styles.hintText}>Seleccionar</Text>
+      {/* BOTTOM POWER BUTTON */}
+      <TouchableOpacity style={styles.powerButton} activeOpacity={0.7}>
+        <Ionicons name="power" size={24} color="#FFF" />
+      </TouchableOpacity>
+
+      {/* BOTTOM RIGHT HINT */}
+      <View style={styles.bottomRightHint}>
+        <View style={styles.hintIcon}>
+          <Ionicons name="close" size={16} color="#000" />
+        </View>
+        <Text style={styles.hintText}>Select</Text>
       </View>
     </View>
   );
@@ -185,209 +211,150 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0E0E14',
+    backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-
-  // Background decorative circles
-  bgCircle: {
-    position: 'absolute',
-    borderRadius: 9999,
-    opacity: 0.06,
+  blurredBg: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.6,
   },
-  bgCircle1: {
-    width: 600,
-    height: 600,
-    backgroundColor: '#00D4FF',
-    top: -200,
-    left: -150,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  bgCircle2: {
-    width: 400,
-    height: 400,
-    backgroundColor: '#FF3B30',
-    bottom: -100,
-    right: -80,
-  },
-  bgCircle3: {
-    width: 250,
-    height: 250,
-    backgroundColor: '#00D4FF',
-    bottom: 50,
-    left: '30%',
-  },
-
-  // Logo
-  logoArea: {
+  topRight: {
     position: 'absolute',
     top: 40,
-    left: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    right: 60,
   },
-  logoText: {
-    color: '#CCC',
+  timeText: {
+    color: '#FFF',
     fontSize: 22,
     fontWeight: '300',
-    letterSpacing: 2,
-    marginLeft: 8,
+    letterSpacing: 1,
   },
-  logoBold: {
-    color: '#00D4FF',
-    fontWeight: '700',
-  },
-
-  // Title
   titleArea: {
     alignItems: 'center',
-    marginBottom: 60,
+    marginBottom: 80,
+    marginTop: -40,
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    color: '#FFF',
+    fontSize: 48,
+    fontWeight: '300',
+    letterSpacing: 2,
+    marginBottom: 10,
   },
   subtitle: {
-    color: '#666',
-    fontSize: 15,
-    fontWeight: '400',
-    letterSpacing: 0.3,
+    color: '#AAA',
+    fontSize: 18,
+    fontWeight: '300',
+    letterSpacing: 0.5,
   },
-
-  // Cards layout
   cardsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 28,
+    gap: 40,
   },
   cardWrapper: {
     alignItems: 'center',
+    width: 150,
+    height: 250, // Fixed height to prevent layout shifts
+    justifyContent: 'center',
   },
-
-  // Glow behind card
-  cardGlow: {
-    position: 'absolute',
-    width: 155,
-    height: 210,
-    borderRadius: 24,
-    top: 8,
-    left: 8,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 30,
-    shadowOpacity: 1,
-    elevation: 20,
-  },
-
-  // Main user card
   card: {
-    width: 155,
-    height: 210,
+    width: 130,
+    height: 130,
     borderRadius: 20,
-    borderWidth: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
-    gap: 14,
+    alignItems: 'center',
     overflow: 'hidden',
-    // Subtle inner shimmer
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-
-  // Avatar ring
-  avatarRing: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 3,
-    padding: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cardFocused: {
+    width: 150,
+    height: 150,
+    backgroundColor: '#FFF',
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
   avatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 99,
-  },
-
-  userName: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-
-  colorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  // Add user card
-  addCard: {
-    width: 155,
-    height: 210,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
   },
   addIconCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: 'rgba(0,212,255,0.4)',
-    alignItems: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,212,255,0.07)',
+    alignItems: 'center',
   },
-  addUserText: {
-    color: '#00D4FF',
-    fontSize: 13,
-    fontWeight: '500',
-    opacity: 0.8,
+  userName: {
+    color: '#AAA',
+    fontSize: 18,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginTop: 15,
   },
-
-  // Bottom hint
-  hintRow: {
+  userNameFocused: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  focusIndicator: {
     position: 'absolute',
-    bottom: 40,
+    top: 15,
+  },
+  optionsHint: {
+    position: 'absolute',
+    bottom: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
   },
-  hintKey: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#444',
-    backgroundColor: '#1E1E2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hintKeyText: {
+  optionsText: {
     color: '#FFF',
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  powerButton: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomRightHint: {
+    position: 'absolute',
+    bottom: 40,
+    right: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  hintIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   hintText: {
-    color: '#555',
-    fontSize: 13,
-    letterSpacing: 0.5,
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
