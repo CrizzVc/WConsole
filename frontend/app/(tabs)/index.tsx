@@ -1012,7 +1012,7 @@ export default function ConsoleHome() {
             >
               <BlurView intensity={30} tint="dark" style={styles.widgetBlur}>
                 <View style={styles.widgetHeader}>
-                  <MaterialCommunityIcons name={gamepadInfo.connected ? "controller-classic" : "controller-classic-off"} size={24} color={gamepadInfo.connected ? "#00FFFF" : "#666"} />
+                  <MaterialCommunityIcons name={gamepadInfo.connected ? "controller-classic" : "controller-off"} size={24} color={gamepadInfo.connected ? "#00FFFF" : "#666"} />
                   <Text style={styles.widgetTitle}>CONTROL</Text>
                 </View>
                 <View style={styles.widgetContent}>
