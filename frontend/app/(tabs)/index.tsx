@@ -197,6 +197,54 @@ export default function ConsoleHome() {
     loadApps();
   }, []);
 
+  // Gamepad Support
+  useEffect(() => {
+    let rafId: number;
+    const prevButtons = new Array(16).fill(false);
+    let lastMoveTime = 0;
+    const THROTTLE = 200;
+
+    const poll = () => {
+      const gamepads = navigator.getGamepads();
+      const gp = gamepads[0];
+      if (gp) {
+        const now = Date.now();
+        const buttons = gp.buttons;
+        
+        const dispatch = (key: string) => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+          lastMoveTime = now;
+        };
+
+        // D-Pad and Sticks (Throttled)
+        if (now - lastMoveTime > THROTTLE) {
+          if (buttons[12]?.pressed || gp.axes[1] < -0.5) dispatch('ArrowUp');
+          else if (buttons[13]?.pressed || gp.axes[1] > 0.5) dispatch('ArrowDown');
+          else if (buttons[14]?.pressed || gp.axes[0] < -0.5) dispatch('ArrowLeft');
+          else if (buttons[15]?.pressed || gp.axes[0] > 0.5) dispatch('ArrowRight');
+        }
+
+        // Buttons (One-shot)
+        const checkButton = (idx: number, key: string) => {
+          if (buttons[idx]?.pressed && !prevButtons[idx]) dispatch(key);
+          prevButtons[idx] = buttons[idx]?.pressed;
+        };
+
+        checkButton(0, 'Enter');      // A / Cross
+        checkButton(1, 'Escape');     // B / Circle
+        checkButton(4, 'q');         // L1
+        checkButton(5, 'e');         // R1
+        checkButton(9, 'Enter');      // Options/Start
+      }
+      rafId = requestAnimationFrame(poll);
+    };
+
+    if (Platform.OS === 'web') {
+      rafId = requestAnimationFrame(poll);
+    }
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
   // Sincronizar selectedItem cuando cambian las listas
   useEffect(() => {
     if (selectedItem) {
@@ -214,7 +262,12 @@ export default function ConsoleHome() {
           e.preventDefault();
         }
 
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable || e.target.getAttribute('type') === 'text') {
+        if (e.target && (
+          e.target.tagName === 'INPUT' || 
+          e.target.tagName === 'TEXTAREA' || 
+          e.target.isContentEditable || 
+          (e.target.getAttribute && e.target.getAttribute('type') === 'text')
+        )) {
           return;
         }
 

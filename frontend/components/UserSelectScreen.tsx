@@ -141,8 +141,46 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
       window.addEventListener('keydown', handleKeyDown);
     }
 
+    // Gamepad Support
+    let rafId: number;
+    const prevButtons = new Array(16).fill(false);
+    let lastMoveTime = 0;
+    const THROTTLE = 220;
+
+    const poll = () => {
+      const gamepads = navigator.getGamepads();
+      const gp = gamepads[0];
+      if (gp) {
+        const now = Date.now();
+        const buttons = gp.buttons;
+        
+        const dispatch = (key: string) => {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key } as any));
+          lastMoveTime = now;
+        };
+
+        if (now - lastMoveTime > THROTTLE) {
+          if (buttons[14]?.pressed || gp.axes[0] < -0.5) dispatch('ArrowLeft');
+          else if (buttons[15]?.pressed || gp.axes[0] > 0.5) dispatch('ArrowRight');
+        }
+
+        const checkButton = (idx: number, key: string) => {
+          if (buttons[idx]?.pressed && !prevButtons[idx]) dispatch(key);
+          prevButtons[idx] = buttons[idx]?.pressed;
+        };
+
+        checkButton(0, 'Enter'); // A
+      }
+      rafId = requestAnimationFrame(poll);
+    };
+
+    if (Platform.OS === 'web') {
+      rafId = requestAnimationFrame(poll);
+    }
+
     return () => {
       clearInterval(interval);
+      cancelAnimationFrame(rafId);
       if (Platform.OS === 'web') {
         window.removeEventListener('keydown', handleKeyDown);
       }
