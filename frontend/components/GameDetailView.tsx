@@ -303,36 +303,42 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                 </View>
               </View>
 
-              <Text style={styles.detailDescription}>
-                {item.description ?? 'Disfruta de esta increíble experiencia de juego.'}
-              </Text>
+              <ScrollView 
+                style={styles.detailScrollView} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                <Text style={styles.detailDescription}>
+                  {item.description ?? 'Disfruta de esta increíble experiencia de juego.'}
+                </Text>
 
-              <View style={styles.mediaContainer}>
-                {item.youtubeId ? (
-                  <YoutubePlayer
-                    height={185}
-                    play={isVisible}
-                    videoId={item.youtubeId}
-                  />
-                ) : item.video ? (
-                  <View style={styles.videoWrapper}>
-                    {/* En Electron/Web usamos un tag de video estándar */}
-                    <video
-                      key={item.video.uri}
-                      style={{ width: '100%', height: '100%', borderRadius: 12, objectFit: 'cover' }}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="auto"
-                    >
-                      <source src={item.video.uri} />
-                    </video>
-                  </View>
-                ) : (
-                  item.image && <Image source={item.image} style={styles.detailScreenshot} />
-                )}
-              </View>
+                <View style={styles.mediaContainer}>
+                  {item.youtubeId ? (
+                    <YoutubePlayer
+                      height={185}
+                      play={isVisible}
+                      videoId={item.youtubeId}
+                    />
+                  ) : item.video ? (
+                    <View style={styles.videoWrapper}>
+                      {/* En Electron/Web usamos un tag de video estándar */}
+                      <video
+                        key={item.video.uri}
+                        style={{ width: '100%', height: '100%', borderRadius: 12, objectFit: 'cover' }}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="auto"
+                      >
+                        <source src={item.video.uri} />
+                      </video>
+                    </View>
+                  ) : (
+                    item.image && <Image source={item.image} style={styles.detailScreenshot} />
+                  )}
+                </View>
+              </ScrollView>
             </View>
           </View>
         </View>
@@ -431,7 +437,8 @@ const styles = StyleSheet.create({
   detailLeft: { flex: 1, justifyContent: 'flex-end', marginRight: 45 },
   detailCover: { width: 280, height: 170, borderRadius: 14, resizeMode: 'cover', borderWidth: 2, borderColor: 'rgba(0,255,255,0.3)' },
   detailLogo: { width: 320, height: 180, resizeMode: 'contain' },
-  detailRight: { width: 340, justifyContent: 'flex-end' },
+  detailRight: { width: 440, height: '70%', justifyContent: 'flex-end' },
+  detailScrollView: { flex: 1, marginTop: 10 },
   detailTitle: { color: '#FFF', fontSize: 26, fontWeight: 'bold', marginBottom: 18, letterSpacing: 0.4 },
   detailActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   playButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8, marginRight: 22 },
