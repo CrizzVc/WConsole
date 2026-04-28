@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateApp: (appData) => ipcRenderer.invoke('update-app', appData),
   closeApp: () => ipcRenderer.invoke('close-app'),
   fetchGameData: (title) => ipcRenderer.invoke('fetch-game-data', title),
+  fetchSteamGridData: (title) => ipcRenderer.invoke('fetch-steamgrid-data', title),
 });
+
 
 

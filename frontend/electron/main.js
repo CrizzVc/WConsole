@@ -14,7 +14,9 @@ protocol.registerSchemesAsPrivileged([
 const dbPath = path.join(app.getPath('userData'), 'database.json');
 const IGDB_CLIENT_ID = 'cedukeor213t2yrqswcerzpldefp43'; // REEMPLAZAR
 const IGDB_CLIENT_SECRET = 'q9hm9iq6ahlaccv3osl19a7y71qd3t'; // REEMPLAZAR
+const STEAMGRID_API_KEY = '6abd5716fa6f6cb81eaed8426560c5eb'; // REEMPLAZADO
 let igdbAccessToken = null;
+
 
 
 // Inicializar la base de datos local
@@ -248,7 +250,61 @@ app.whenReady().then(() => {
     }
   });
 
+  // IPC: Buscar assets de un juego en SteamGridDB
+  ipcMain.handle('fetch-steamgrid-data', async (event, title) => {
+    if (!STEAMGRID_API_KEY || STEAMGRID_API_KEY.includes('TU_')) {
+      return { success: false, error: 'Configuración pendiente: Pon tu API Key en la línea 17 de main.js' };
+    }
+
+
+    console.log('Buscando en SteamGridDB:', title);
+
+
+    try {
+      // 1. Buscar el juego para obtener el ID
+      const searchRes = await fetch(`https://www.steamgriddb.com/api/v2/search/autocomplete/${encodeURIComponent(title)}`, {
+        headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` }
+      });
+      const searchData = await searchRes.json();
+
+      if (!searchData.success) {
+        return { success: false, error: 'Error de API: ' + (searchData.errors ? searchData.errors.join(', ') : '¿Quizás la API Key es incorrecta?') };
+      }
+
+      if (!searchData.data || searchData.data.length === 0) {
+        return { success: false, error: 'Juego no encontrado en SteamGridDB' };
+      }
+
+      const gameId = searchData.data[0].id;
+
+
+      // 2. Buscar Grids (Portadas), Heroes (Fondos) y Logos en paralelo
+      // Filtramos por dimensiones para obtener grids cuadrados (1:1) y fondos panorámicos
+      const [gridsRes, heroesRes, logosRes] = await Promise.all([
+        fetch(`https://www.steamgriddb.com/api/v2/grids/game/${gameId}?dimensions=512x512,1024x1024&limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
+        fetch(`https://www.steamgriddb.com/api/v2/heroes/game/${gameId}?dimensions=1920x1080,2560x1440,3840x2160&limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } }),
+        fetch(`https://www.steamgriddb.com/api/v2/logos/game/${gameId}?limit=1`, { headers: { 'Authorization': `Bearer ${STEAMGRID_API_KEY}` } })
+      ]);
+
+
+      const [grids, heroes, logos] = await Promise.all([gridsRes.json(), heroesRes.json(), logosRes.json()]);
+
+      return {
+        success: true,
+        data: {
+          grid: grids.success && grids.data.length > 0 ? grids.data[0].url : null,
+          hero: heroes.success && heroes.data.length > 0 ? heroes.data[0].url : null,
+          logo: logos.success && logos.data.length > 0 ? logos.data[0].url : null
+        }
+      };
+    } catch (error) {
+      console.error('Error buscando en SteamGridDB:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // IPC: Cerrar la aplicación
+
 
   ipcMain.handle('close-app', () => {
     app.quit();

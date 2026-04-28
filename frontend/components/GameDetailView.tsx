@@ -105,6 +105,26 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
   };
 
 
+  const handleSyncSteamGrid = async () => {
+    if ((window as any).electronAPI && editData.title) {
+      setIsSyncing(true);
+      const result = await (window as any).electronAPI.fetchSteamGridData(editData.title);
+      setIsSyncing(false);
+      
+      if (result.success) {
+        const assets = result.data;
+        setEditData({
+          ...editData,
+          image: assets.grid || editData.image,
+          backgroundImage: assets.hero || editData.backgroundImage,
+          logo: assets.logo || editData.logo
+        });
+      } else {
+        alert('SteamGridDB: ' + result.error);
+      }
+    }
+  };
+
   return (
     <Modal visible={isVisible} transparent={false} animationType="fade" onRequestClose={onClose}>
       <View style={styles.detailContainer}>
@@ -225,6 +245,16 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               <Ionicons name="sync" size={18} color="#000" />
               <Text style={styles.syncBtnText}>{isSyncing ? 'Sincronizando...' : 'Sincronizar con IGDB (Rating/Resumen)'}</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.syncBtn, { backgroundColor: '#171a21' }, isSyncing && { opacity: 0.7 }]} 
+              onPress={handleSyncSteamGrid}
+              disabled={isSyncing}
+            >
+              <Ionicons name="images" size={18} color="#FFF" />
+              <Text style={[styles.syncBtnText, { color: '#FFF' }]}>{isSyncing ? 'Sincronizando...' : 'Sincronizar con SteamGridDB (Arte)'}</Text>
+            </TouchableOpacity>
+
 
 
             <ScrollView style={{ maxHeight: 400 }}>
