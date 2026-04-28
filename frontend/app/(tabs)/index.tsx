@@ -11,6 +11,7 @@ import ControlPrompt from '@/components/ControlPrompt';
 import { useUser } from '@/contexts/UserContext';
 import { Linking } from 'react-native';
 import { fetchGamingNews, NewsArticle } from '@/services/newsService';
+import { soundService } from '@/services/soundService';
 
 const TABS = ['Games', 'Media', 'Biblioteca'];
 
@@ -225,8 +226,8 @@ export default function ConsoleHome() {
   };
 
   useEffect(() => {
-    loadApps();
     fetchGamingNews().then(setNews);
+    soundService.init();
 
     // Get real storage info if on Electron
     if (Platform.OS === 'web' && (window as any).electronAPI) {
@@ -427,6 +428,7 @@ export default function ConsoleHome() {
         // --- SPATIAL NAVIGATION ---
 
         if (e.key === 'ArrowDown') {
+          soundService.playNavigation();
           if (focusArea === 'header_user' || focusArea === 'header_tabs') {
             setFocusArea('main_carousel');
             setFocusIndex(activeIndex);
@@ -466,6 +468,7 @@ export default function ConsoleHome() {
         }
 
         if (e.key === 'ArrowUp') {
+          soundService.playNavigation();
           if (focusArea === 'footer') {
             setFocusArea('bottom_news');
             setFocusIndex(news.length);
@@ -506,6 +509,7 @@ export default function ConsoleHome() {
         }
 
         if (e.key === 'ArrowRight') {
+          soundService.playNavigation();
           if (focusArea === 'main_carousel') {
             if (activeTab === 'Biblioteca') {
               const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
@@ -530,6 +534,7 @@ export default function ConsoleHome() {
         }
 
         if (e.key === 'ArrowLeft') {
+          soundService.playNavigation();
           if (focusArea === 'main_carousel') {
             const nextIdx = Math.max(activeIndex - 1, 0);
             setActiveIndex(nextIdx);
@@ -548,6 +553,7 @@ export default function ConsoleHome() {
         }
 
         if (e.key === 'Enter') {
+          soundService.playActivation();
           if (focusArea === 'main_carousel') {
             const item = currentData[activeIndex];
             if (item) {
@@ -590,6 +596,7 @@ export default function ConsoleHome() {
         }
 
         if (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E') {
+          soundService.playNavigation();
           const direction = (e.key === 'q' || e.key === 'Q') ? -1 : 1;
           setActiveTab((prev) => {
             const idx = TABS.indexOf(prev);

@@ -11,6 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import ControlPrompt from './ControlPrompt';
+import { soundService } from '../services/soundService';
 
 
 export interface UserSettings {
@@ -91,6 +92,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
     };
 
     loadUsers();
+    soundService.init();
   }, []);
 
   // Background pulse animation for fallback
@@ -130,12 +132,15 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
       const currentIndex = allIds.indexOf(hoveredId || 'add');
 
       if (e.key === 'ArrowRight') {
+        soundService.playNavigation();
         const nextIndex = (currentIndex + 1) % totalItems;
         setHoveredId(allIds[nextIndex]);
       } else if (e.key === 'ArrowLeft') {
+        soundService.playNavigation();
         const nextIndex = (currentIndex - 1 + totalItems) % totalItems;
         setHoveredId(allIds[nextIndex]);
       } else if (e.key === 'Enter') {
+        soundService.playActivation();
         if (hoveredId === 'add') {
           const newUser: UserProfile = {
             id: Date.now().toString(),
