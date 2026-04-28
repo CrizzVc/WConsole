@@ -219,7 +219,7 @@ export default function ConsoleHome() {
         } else if (e.key === 'Enter') {
           const item = currentData[activeIndex];
           if (item) {
-            if (item.isFolder) {
+            if (item.isFolder || item.isGrid) {
               setFavoritesVisible(true);
               return;
             }
@@ -257,7 +257,7 @@ export default function ConsoleHome() {
         setHomeBgModalVisible(true);
         return;
       }
-      if (item.isFolder) {
+      if (item.isFolder || item.isGrid) {
         setFavoritesVisible(true);
         return;
       }
@@ -449,14 +449,57 @@ export default function ConsoleHome() {
               if (item.isGrid) {
                 return (
                   <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                    <View style={[styles.gridContainer, cardContainerStyle]}>
-                      <View style={styles.gridRow}>
-                        <View style={[styles.gridItem, { backgroundColor: '#9146FF' }]}><MaterialCommunityIcons name="twitch" size={40} color="#FFF" /></View>
-                        <View style={[styles.gridItem, { backgroundColor: '#E50914' }]}><MaterialCommunityIcons name="netflix" size={40} color="#FFF" /></View>
+                    <View style={[styles.folderContainer, cardContainerStyle]}>
+                      <View style={styles.folderHeader}>
+                        <MaterialCommunityIcons name="view-grid" size={16} color="#00FFFF" />
+                        <Text style={styles.folderTitle}> Favorite Media</Text>
                       </View>
-                      <View style={styles.gridRow}>
-                        <View style={[styles.gridItem, { backgroundColor: '#1DB954' }]}><MaterialCommunityIcons name="spotify" size={40} color="#FFF" /></View>
-                        <View style={[styles.gridItem, { backgroundColor: '#002E5D', justifyContent: 'center', alignItems: 'center' }]}><Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>Disney+</Text></View>
+                      <View style={styles.folderContent}>
+                        {(() => {
+                          const favs = media.filter(m => m.isFavorite);
+                          if (favs.length === 0) {
+                            return (
+                              <View style={styles.folderEmpty}>
+                                <Ionicons name="apps-outline" size={30} color="rgba(0,255,255,0.2)" />
+                              </View>
+                            );
+                          }
+                          if (favs.length === 1) {
+                            return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                          }
+                          if (favs.length === 2) {
+                            return (
+                              <View style={styles.folderCol}>
+                                <Image source={favs[0].image} style={styles.folderImgWide} />
+                                <Image source={favs[1].image} style={styles.folderImgWide} />
+                              </View>
+                            );
+                          }
+                          if (favs.length === 3) {
+                            return (
+                              <View style={styles.folderCol}>
+                                <View style={styles.folderRow}>
+                                  <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                  <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                </View>
+                                <Image source={favs[2].image} style={styles.folderImgWide} />
+                              </View>
+                            );
+                          }
+                          // 4 or more
+                          return (
+                            <View style={styles.folderCol}>
+                              <View style={styles.folderRow}>
+                                <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                <Image source={favs[1].image} style={styles.folderImgSmall} />
+                              </View>
+                              <View style={styles.folderRow}>
+                                <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                <Image source={favs[3].image} style={styles.folderImgSmall} />
+                              </View>
+                            </View>
+                          );
+                        })()}
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -472,14 +515,51 @@ export default function ConsoleHome() {
                         <Text style={styles.folderTitle}> Favorite Games</Text>
                       </View>
                       <View style={styles.folderContent}>
-                        {games.filter(g => g.isFavorite).slice(0, 2).map((fav, i) => (
-                          <Image key={fav.id} source={fav.image} style={styles.folderImg} />
-                        ))}
-                        {games.filter(g => g.isFavorite).length === 0 && (
-                          <View style={styles.folderEmpty}>
-                            <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
-                          </View>
-                        )}
+                        {(() => {
+                          const favs = games.filter(g => g.isFavorite);
+                          if (favs.length === 0) {
+                            return (
+                              <View style={styles.folderEmpty}>
+                                <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
+                              </View>
+                            );
+                          }
+                          if (favs.length === 1) {
+                            return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                          }
+                          if (favs.length === 2) {
+                            return (
+                              <View style={styles.folderCol}>
+                                <Image source={favs[0].image} style={styles.folderImgWide} />
+                                <Image source={favs[1].image} style={styles.folderImgWide} />
+                              </View>
+                            );
+                          }
+                          if (favs.length === 3) {
+                            return (
+                              <View style={styles.folderCol}>
+                                <View style={styles.folderRow}>
+                                  <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                  <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                </View>
+                                <Image source={favs[2].image} style={styles.folderImgWide} />
+                              </View>
+                            );
+                          }
+                          // 4 or more
+                          return (
+                            <View style={styles.folderCol}>
+                              <View style={styles.folderRow}>
+                                <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                <Image source={favs[1].image} style={styles.folderImgSmall} />
+                              </View>
+                              <View style={styles.folderRow}>
+                                <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                <Image source={favs[3].image} style={styles.folderImgSmall} />
+                              </View>
+                            </View>
+                          );
+                        })()}
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -554,7 +634,7 @@ export default function ConsoleHome() {
 
       <FavoritesView
         isVisible={isFavoritesVisible}
-        favorites={games.filter(g => g.isFavorite)}
+        favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
         onLaunch={(path) => {
           if (path && Platform.OS === 'web' && (window as any).electronAPI) {
@@ -779,8 +859,12 @@ const styles = StyleSheet.create({
   } as any,
   folderHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   folderTitle: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  folderContent: { flexDirection: 'row', justifyContent: 'space-between', flex: 1 },
-  folderImg: { width: '48%', height: '100%', borderRadius: 8 },
+  folderContent: { flex: 1, marginTop: 5 },
+  folderCol: { flex: 1, justifyContent: 'space-between' },
+  folderRow: { flexDirection: 'row', justifyContent: 'space-between', height: '48%' },
+  folderImgFull: { width: '100%', height: '100%', borderRadius: 6 },
+  folderImgWide: { width: '100%', height: '48%', borderRadius: 4 },
+  folderImgSmall: { width: '48%', height: '100%', borderRadius: 4 },
   folderEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
