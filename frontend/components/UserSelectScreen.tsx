@@ -12,11 +12,16 @@ import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 
+export interface UserSettings {
+  autoPlayVideo: boolean;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   avatar: string;
   color: string;
+  settings?: UserSettings;
 }
 
 interface UserSelectScreenProps {
@@ -24,8 +29,20 @@ interface UserSelectScreenProps {
 }
 
 const DEFAULT_USERS: UserProfile[] = [
-  { id: '1', name: 'Player 1', avatar: 'https://i.pravatar.cc/200?img=11', color: '#FF3B30' },
-  { id: '2', name: 'Player 2', avatar: 'https://i.pravatar.cc/200?img=47', color: '#00D4FF' },
+  { 
+    id: '1', 
+    name: 'Player 1', 
+    avatar: 'https://i.pravatar.cc/200?img=11', 
+    color: '#FF3B30',
+    settings: { autoPlayVideo: true }
+  },
+  { 
+    id: '2', 
+    name: 'Player 2', 
+    avatar: 'https://i.pravatar.cc/200?img=47', 
+    color: '#00D4FF',
+    settings: { autoPlayVideo: true }
+  },
 ];
 
 export default function UserSelectScreen({ onUserSelected }: UserSelectScreenProps) {

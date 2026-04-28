@@ -95,6 +95,7 @@ export default function ConsoleHome() {
   const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
   const [isFavoritesVisible, setFavoritesVisible] = useState(false);
   const [isSettingsVisible, setSettingsVisible] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'home'>('profile');
   const [homeBackground, setHomeBackground] = useState<any>(null);
 
   // Background transition states
@@ -107,6 +108,11 @@ export default function ConsoleHome() {
 
   useEffect(() => {
     setShowTrailer(false);
+    
+    // Si la reproducción automática está desactivada en ajustes, no mostrar trailer
+    const autoPlay = activeUser?.settings?.autoPlayVideo !== false; // Por defecto true
+    if (!autoPlay) return;
+
     const item = currentData[activeIndex];
     if (item?.youtubeId) {
       const timer = setTimeout(() => {
@@ -114,7 +120,7 @@ export default function ConsoleHome() {
       }, 3000); // 3 segundos de espera
       return () => clearTimeout(timer);
     }
-  }, [activeIndex, activeTab]);
+  }, [activeIndex, activeTab, activeUser?.settings?.autoPlayVideo]);
 
   useEffect(() => {
     tabFade.value = 0;
@@ -740,10 +746,12 @@ export default function ConsoleHome() {
             ]}
             activeOpacity={0.75}
           >
-            {activeUser ? (
+            {activeUser?.avatar ? (
               <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.avatar} />
             ) : (
-              <Ionicons name="person" size={22} color="#CCC" />
+              <View style={styles.defaultAvatarHeader}>
+                <Ionicons name="person" size={24} color="#FFF" />
+              </View>
             )}
           </TouchableOpacity>
           {activeUser && (
@@ -1292,60 +1300,133 @@ export default function ConsoleHome() {
       <Modal visible={isSettingsVisible} transparent animationType="slide">
         <View style={styles.settingsOverlay}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.settingsContent}>
-            <Text style={styles.settingsTitle}>Configuración de Perfil</Text>
+          
+          <View style={styles.settingsContainer}>
+            {/* Sidebar Navigation */}
+            <View style={styles.settingsSidebar}>
+              <Text style={styles.settingsSidebarTitle}>Ajustes</Text>
+              
+              <TouchableOpacity 
+                style={[styles.settingsTab, settingsTab === 'profile' && styles.settingsTabActive]}
+                onPress={() => setSettingsTab('profile')}
+              >
+                <Ionicons name="person-outline" size={20} color={settingsTab === 'profile' ? '#00FFFF' : '#AAA'} />
+                <Text style={[styles.settingsTabText, settingsTab === 'profile' && styles.settingsTabTextActive]}>Perfil</Text>
+              </TouchableOpacity>
 
-            <View style={styles.settingsSection}>
-              <Text style={styles.settingsLabel}>Foto de Perfil</Text>
-              <TouchableOpacity onPress={handleSelectAvatar} style={[styles.settingsAvatarContainer, { borderColor: activeUser?.color || '#00FFFF' }]}>
-                {activeUser?.avatar ? (
-                  <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.settingsAvatar} />
-                ) : (
-                  <Ionicons name="person" size={48} color="#FFF" />
-                )}
-                <View style={styles.settingsAvatarEditBadge}>
-                  <Ionicons name="camera" size={20} color="#FFF" />
-                </View>
+              <TouchableOpacity 
+                style={[styles.settingsTab, settingsTab === 'home' && styles.settingsTabActive]}
+                onPress={() => setSettingsTab('home')}
+              >
+                <Ionicons name="home-outline" size={20} color={settingsTab === 'home' ? '#00FFFF' : '#AAA'} />
+                <Text style={[styles.settingsTabText, settingsTab === 'home' && styles.settingsTabTextActive]}>Inicio</Text>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1 }} />
+              
+              <TouchableOpacity 
+                style={styles.settingsSidebarClose}
+                onPress={() => {
+                  setSettingsVisible(false);
+                  setUserModalVisible(true);
+                }}
+              >
+                <Ionicons name="arrow-back" size={20} color="#AAA" />
+                <Text style={styles.settingsSidebarCloseText}>Volver</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.settingsSection}>
-              <Text style={styles.settingsLabel}>Nombre de Usuario</Text>
-              <TextInput
-                style={styles.settingsInput}
-                value={activeUser?.name || ''}
-                onChangeText={(text) => updateUser({ name: text })}
-                placeholder="Ingresa tu nombre"
-                placeholderTextColor="#666"
-              />
-            </View>
+            {/* Main Content Area */}
+            <View style={styles.settingsMain}>
+              {settingsTab === 'profile' ? (
+                <ScrollView contentContainerStyle={styles.settingsScrollContentInner}>
+                  <Text style={styles.settingsMainTitle}>Configuración de Perfil</Text>
+                  
+                  <View style={styles.settingsSection}>
+                    <Text style={styles.settingsLabel}>Foto de Perfil</Text>
+                    <TouchableOpacity onPress={handleSelectAvatar} style={[styles.settingsAvatarContainer, { borderColor: activeUser?.color || '#00FFFF' }]}>
+                      {activeUser?.avatar ? (
+                        <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.settingsAvatar} />
+                      ) : (
+                        <View style={styles.defaultAvatarContainer}>
+                          <Ionicons name="person" size={60} color="rgba(255,255,255,0.4)" />
+                        </View>
+                      )}
+                      <View style={styles.settingsAvatarEditBadge}>
+                        <Ionicons name="camera" size={20} color="#FFF" />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
 
-            <View style={styles.settingsSection}>
-              <Text style={styles.settingsLabel}>Color de Perfil</Text>
-              <View style={styles.colorPickerContainer}>
-                {['#FF3B30', '#00D4FF', '#FFCC00', '#4CD964', '#AF52DE', '#FF9500'].map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: color },
-                      activeUser?.color === color && styles.colorCircleActive
-                    ]}
-                    onPress={() => updateUser({ color })}
-                  />
-                ))}
-              </View>
-            </View>
+                  <View style={styles.settingsSection}>
+                    <Text style={styles.settingsLabel}>Nombre de Usuario</Text>
+                    <TextInput
+                      style={styles.settingsInput}
+                      value={activeUser?.name || ''}
+                      onChangeText={(text) => updateUser({ name: text })}
+                      placeholder="Ingresa tu nombre"
+                      placeholderTextColor="#666"
+                    />
+                  </View>
 
-            <TouchableOpacity
-              style={[styles.settingsCloseBtn, { backgroundColor: activeUser?.color || '#00FFFF' }]}
-              onPress={() => {
-                setSettingsVisible(false);
-                setUserModalVisible(true);
-              }}
-            >
-              <Text style={styles.settingsCloseBtnText}>Guardar y Volver</Text>
-            </TouchableOpacity>
+                  <View style={styles.settingsSection}>
+                    <Text style={styles.settingsLabel}>Color de Perfil</Text>
+                    <View style={styles.colorPickerContainer}>
+                      {['#FF3B30', '#00D4FF', '#FFCC00', '#4CD964', '#AF52DE', '#FF9500'].map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorCircle,
+                            { backgroundColor: color },
+                            activeUser?.color === color && styles.colorCircleActive
+                          ]}
+                          onPress={() => updateUser({ color })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                </ScrollView>
+              ) : (
+                <ScrollView contentContainerStyle={styles.settingsScrollContentInner}>
+                  <Text style={styles.settingsMainTitle}>Configuración de Inicio</Text>
+                  
+                  <View style={styles.settingsOptionRow}>
+                    <View style={styles.settingsOptionInfo}>
+                      <Text style={styles.settingsOptionLabel}>Reproducción automática de video</Text>
+                      <Text style={styles.settingsOptionDesc}>Reproduce trailers de juegos automáticamente cuando seleccionas un juego en el row principal.</Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => updateUser({ 
+                        settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) } 
+                      })}
+                      style={[
+                        styles.toggleContainer, 
+                        (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleContainerActive
+                      ]}
+                    >
+                      <View style={[
+                        styles.toggleCircle, 
+                        (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleCircleActive
+                      ]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.settingsSection}>
+                    <Text style={styles.settingsLabel}>Fondo de Pantalla</Text>
+                    <TouchableOpacity 
+                      style={styles.settingsSecondaryBtn}
+                      onPress={() => {
+                        setSettingsVisible(false);
+                        setHomeBgModalVisible(true);
+                      }}
+                    >
+                      <Ionicons name="image-outline" size={20} color="#FFF" />
+                      <Text style={styles.settingsSecondaryBtnText}>Cambiar Imagen de Fondo</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -1364,7 +1445,9 @@ export default function ConsoleHome() {
                   {activeUser?.avatar ? (
                     <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.modalAvatar} />
                   ) : (
-                    <Ionicons name="person" size={24} color="#FFF" />
+                    <View style={styles.defaultAvatarModal}>
+                      <Ionicons name="person" size={24} color="#FFF" />
+                    </View>
                   )}
                 </View>
                 <View style={{ flex: 1 }}>
@@ -1820,47 +1903,99 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  settingsContent: {
-    width: 450,
-    backgroundColor: 'rgba(30, 30, 45, 0.95)',
-    borderRadius: 25,
-    padding: 35,
+  settingsContainer: {
+    width: 800,
+    height: 500,
+    backgroundColor: 'rgba(20, 20, 35, 0.95)',
+    borderRadius: 30,
+    flexDirection: 'row',
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
   },
-  settingsTitle: {
+  settingsSidebar: {
+    width: 220,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: 30,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  settingsSidebarTitle: {
     color: '#FFF',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+    marginBottom: 40,
   },
-  settingsSection: {
-    marginBottom: 25,
+  settingsTab: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    gap: 12,
   },
-  settingsLabel: {
+  settingsTabActive: {
+    backgroundColor: 'rgba(0, 255, 255, 0.15)',
+  },
+  settingsTabText: {
+    color: '#AAA',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingsTabTextActive: {
+    color: '#00FFFF',
+  },
+  settingsSidebarClose: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    opacity: 0.7,
+  },
+  settingsSidebarCloseText: {
     color: '#AAA',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 12,
+  },
+  settingsMain: {
+    flex: 1,
+    padding: 40,
+  },
+  settingsMainTitle: {
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 30,
+  },
+  settingsScrollContentInner: {
+    paddingBottom: 20,
+  },
+  settingsSection: {
+    marginBottom: 35,
+  },
+  settingsLabel: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 15,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   settingsAvatarContainer: {
     position: 'relative',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 3,
     borderColor: '#00FFFF',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   settingsAvatar: {
     width: '100%',
@@ -1869,21 +2004,19 @@ const styles = StyleSheet.create({
   settingsAvatarEditBadge: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
     left: 0,
+    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     height: '30%',
     justifyContent: 'center',
     alignItems: 'center',
   },
   settingsInput: {
-    width: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     color: '#FFF',
     padding: 15,
-    borderRadius: 12,
-    fontSize: 18,
-    textAlign: 'center',
+    borderRadius: 15,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -1892,27 +2025,95 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   colorCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 2,
     borderColor: 'transparent',
   },
   colorCircleActive: {
     borderColor: '#FFF',
-    transform: [{ scale: 1.2 }],
+    transform: [{ scale: 1.15 }],
   },
-  settingsCloseBtn: {
-    backgroundColor: '#00FFFF',
-    padding: 16,
-    borderRadius: 15,
+  settingsOptionRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'space-between',
+    marginBottom: 30,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
-  settingsCloseBtnText: {
-    color: '#000',
+  settingsOptionInfo: {
+    flex: 1,
+    marginRight: 20,
+  },
+  settingsOptionLabel: {
+    color: '#E0E0FF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  settingsOptionDesc: {
+    color: '#888',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  toggleContainer: {
+    width: 54,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 3,
+  },
+  toggleContainerActive: {
+    backgroundColor: '#00FFFF',
+  },
+  toggleCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+  },
+  toggleCircleActive: {
+    transform: [{ translateX: 24 }],
+  },
+  settingsSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 15,
+    borderRadius: 15,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingsSecondaryBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  defaultAvatarContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  defaultAvatarHeader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  defaultAvatarModal: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFF',
   },
 });
 
