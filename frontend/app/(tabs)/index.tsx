@@ -43,7 +43,7 @@ export default function ConsoleHome() {
   const { activeUser, changeUser } = useUser();
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(0);
-  
+
   // Focus management
   type FocusArea = 'header_user' | 'header_tabs' | 'main_carousel' | 'bottom_news' | 'footer';
   const [focusArea, setFocusArea] = useState<FocusArea>('main_carousel');
@@ -170,6 +170,10 @@ export default function ConsoleHome() {
     if (Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
         // Si el usuario está escribiendo en un input o textarea, no interferimos con la navegación del sistema
+        if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
+          e.preventDefault();
+        }
+
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
           return;
         }
@@ -205,7 +209,7 @@ export default function ConsoleHome() {
         if (isAddModalVisible || isHomeBgModalVisible || isFavoritesVisible) return;
 
         // --- SPATIAL NAVIGATION ---
-        
+
         if (e.key === 'ArrowDown') {
           if (focusArea === 'header_user' || focusArea === 'header_tabs') {
             setFocusArea('main_carousel');
@@ -462,9 +466,10 @@ export default function ConsoleHome() {
               setFocusArea('header_user');
               setUserModalVisible(true);
             }}
+            accessible={false}
             style={[
-              styles.avatarContainer, 
-              styles.avatarActive, 
+              styles.avatarContainer,
+              styles.avatarActive,
               activeUser ? { borderColor: activeUser.color } : {},
               focusArea === 'header_user' && styles.itemFocused
             ]}
@@ -481,10 +486,10 @@ export default function ConsoleHome() {
         <View style={styles.headerCenter}>
           <View style={styles.lrButton}><Text style={styles.lrText}>L</Text></View>
           {TABS.map((tab, idx) => (
-            <Text 
-              key={tab} 
+            <Text
+              key={tab}
               style={[
-                styles.navItem, 
+                styles.navItem,
                 activeTab === tab && styles.navItemActive,
                 (focusArea === 'header_tabs' && focusIndex === idx) && styles.tabFocused
               ]}
@@ -675,34 +680,37 @@ export default function ConsoleHome() {
       {/* BOTTOM NEWS ROW */}
       <View style={styles.newsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.newsScroll}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.newsCard, (focusArea === 'bottom_news' && focusIndex === 0) && styles.itemFocused]}
             onPress={() => {
               setFocusArea('bottom_news');
               setFocusIndex(0);
             }}
+            accessible={false}
           >
             <Text style={styles.newsText}>Official News</Text>
             <View style={styles.newsDot} />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 1) && styles.itemFocused]}
             onPress={() => {
               setFocusArea('bottom_news');
               setFocusIndex(1);
             }}
+            accessible={false}
           >
             <Image source={require('@/assets/images/game_adventure.png')} style={styles.newsVideoImg} />
             <View style={styles.playIconContainer}>
               <Ionicons name="play" size={16} color="#FFF" />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 2) && styles.itemFocused]}
             onPress={() => {
               setFocusArea('bottom_news');
               setFocusIndex(2);
             }}
+            accessible={false}
           >
             <Image source={require('@/assets/images/game_cyberpunk.png')} style={styles.newsVideoImg} />
             <View style={styles.playIconContainer}>
@@ -719,12 +727,13 @@ export default function ConsoleHome() {
           <Text style={styles.footerHint}><Ionicons name="apps" size={14} /> Explore</Text>
         </View>
         <View style={styles.footerRight}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               setFocusArea('footer');
               setFocusIndex(0);
               setAddModalVisible(true);
-            }} 
+            }}
+            accessible={false}
             style={[styles.footerBtn, (focusArea === 'footer' && focusIndex === 0) && styles.footerBtnFocused]}
           >
             <Text style={styles.footerHint}><Text style={styles.btnIcon}> + </Text> Añadir App</Text>
@@ -1026,7 +1035,7 @@ const styles = StyleSheet.create({
   statusInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusText: { color: '#A0A0C0', fontSize: 14, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   statusSeparator: { color: '#404060', fontSize: 18 },
-  
+
   // New Focus Styles
   itemFocused: {
     borderWidth: 3,

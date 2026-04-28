@@ -98,6 +98,10 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
   useEffect(() => {
     if (isVisible && Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
+        if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
+          e.preventDefault();
+        }
+
         if (e.key === 'ArrowRight') {
           if (activeIndex < favorites.length - 1) {
             isKeyboardScroll.current = true;
@@ -134,7 +138,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
     return (
       <Modal visible={isVisible} transparent animationType="fade">
         <View style={styles.container}>
-          <TouchableOpacity style={styles.backButton} onPress={onClose}>
+          <TouchableOpacity style={styles.backButton} onPress={onClose} accessible={false}>
             <Ionicons name="arrow-back" size={28} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.emptyContainer}>
@@ -165,7 +169,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
 
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={onClose}>
+          <TouchableOpacity style={styles.backButton} onPress={onClose} accessible={false}>
             <Ionicons name="arrow-back" size={28} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>

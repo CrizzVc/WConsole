@@ -41,6 +41,10 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
   useEffect(() => {
     if (isVisible && !isEditModalVisible) {
       const handleKeyDown = (e: KeyboardEvent) => {
+        if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
+          e.preventDefault();
+        }
+
         if (e.key === 'ArrowRight') {
           setFocusIndex((prev) => Math.min(prev + 1, 2));
         } else if (e.key === 'ArrowLeft') {
@@ -195,7 +199,11 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
 
         <View style={styles.detailOverlay}>
-          <TouchableOpacity style={styles.detailBack} onPress={onClose}>
+          <TouchableOpacity 
+            style={styles.detailBack} 
+            onPress={onClose}
+            accessible={false}
+          >
             <Ionicons name="arrow-back-outline" size={28} color="#FFF" />
           </TouchableOpacity>
 
