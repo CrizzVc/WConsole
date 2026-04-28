@@ -209,6 +209,20 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             <Ionicons name="arrow-back-outline" size={28} color="#FFF" />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[
+              styles.favoriteButton, 
+              item.isFavorite && styles.favoriteButtonActive,
+              focusIndex === 2 && styles.buttonFocused
+            ]}
+            onPress={() => {
+              setFocusIndex(2);
+              handleToggleFavorite();
+            }}
+          >
+            <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={22} color={item.isFavorite ? "#FF2D55" : "#FFF"} />
+          </TouchableOpacity>
+
           <View style={styles.detailContent}>
             <View style={styles.detailLeft}>
               {(editData.logo || item.logo) ? (
@@ -267,19 +281,6 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                   <Text style={styles.playButtonText}>Editar</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.favoriteButton, 
-                    item.isFavorite && styles.favoriteButtonActive,
-                    focusIndex === 2 && styles.buttonFocused
-                  ]}
-                  onPress={() => {
-                    setFocusIndex(2);
-                    handleToggleFavorite();
-                  }}
-                >
-                  <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={22} color={item.isFavorite ? "#FF2D55" : "#FFF"} />
-                </TouchableOpacity>
 
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star-outline" size={22} color="#FFD700" />
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
   detailActions: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   playButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', paddingHorizontal: 28, paddingVertical: 12, borderRadius: 8, marginRight: 22 },
   playButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 10 },
-  favoriteButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
+  favoriteButton: { position: 'absolute', top: 24, right: 28, zIndex: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   favoriteButtonActive: { backgroundColor: 'rgba(255, 45, 85, 0.2)', borderWidth: 1, borderColor: 'rgba(255, 45, 85, 0.5)' },
   ratingContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto' },
   ratingText: { color: '#FFD700', fontSize: 22, fontWeight: 'bold', marginLeft: 7 },
