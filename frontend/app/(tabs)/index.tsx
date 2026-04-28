@@ -215,7 +215,7 @@ export default function ConsoleHome() {
       if (gp) {
         const now = Date.now();
         const buttons = gp.buttons;
-        
+
         const dispatch = (key: string) => {
           window.dispatchEvent(new KeyboardEvent('keydown', { key }));
           lastMoveTime = now;
@@ -268,9 +268,9 @@ export default function ConsoleHome() {
         }
 
         if (e.target && (
-          e.target.tagName === 'INPUT' || 
-          e.target.tagName === 'TEXTAREA' || 
-          e.target.isContentEditable || 
+          e.target.tagName === 'INPUT' ||
+          e.target.tagName === 'TEXTAREA' ||
+          e.target.isContentEditable ||
           (e.target.getAttribute && e.target.getAttribute('type') === 'text')
         )) {
           return;
@@ -534,7 +534,7 @@ export default function ConsoleHome() {
       }
     }
   };
-  
+
   const handleSelectAvatar = async () => {
     if ((window as any).electronAPI) {
       const img = await (window as any).electronAPI.selectImage();
@@ -630,9 +630,9 @@ export default function ConsoleHome() {
             ]}
             activeOpacity={0.75}
           >
-        {activeUser ? (
-          <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.avatar} />
-        ) : (
+            {activeUser ? (
+              <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.avatar} />
+            ) : (
               <Ionicons name="person" size={22} color="#CCC" />
             )}
           </TouchableOpacity>
@@ -694,7 +694,7 @@ export default function ConsoleHome() {
               {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Último: ${lastPlayedGame.title}` : 'Último Jugado') : currentData[activeIndex]?.title}
             </Text>
           </View>
-  
+
           <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
             <ScrollView
               ref={scrollRef}
@@ -719,7 +719,7 @@ export default function ConsoleHome() {
                   { width: CARD_SIZE, height: CARD_SIZE },
                   isActive && styles.cardActive
                 ];
-  
+
                 if (item.isGrid) {
                   return (
                     <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
@@ -779,7 +779,7 @@ export default function ConsoleHome() {
                     </TouchableOpacity>
                   );
                 }
-  
+
                 if (item.isFolder) {
                   return (
                     <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
@@ -839,7 +839,7 @@ export default function ConsoleHome() {
                     </TouchableOpacity>
                   );
                 }
-  
+
                 return (
                   <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
                     <Image
@@ -851,14 +851,14 @@ export default function ConsoleHome() {
               })}
             </ScrollView>
           </View>
-  
+
           <View style={styles.activeSubtitleContainer}>
             <Text style={styles.activeSubtitle}>
               {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Jugado recientemente` : 'Ningún juego ejecutado') : currentData[activeIndex]?.time}
             </Text>
           </View>
         </Animated.View>
-  
+
         {/* BOTTOM NEWS SECTION (VERTICAL) */}
         <View style={styles.newsContainerVertical}>
           <View style={styles.newsHeaderContainer}>
@@ -894,7 +894,7 @@ export default function ConsoleHome() {
                 <Text style={styles.newsLoadingText}>Cargando novedades del mundo gaming...</Text>
               </View>
             )}
-            
+
             {/* BACK TO TOP BUTTON at the end of the vertical list */}
             {news.length > 0 && (
               <TouchableOpacity
@@ -1070,91 +1070,91 @@ export default function ConsoleHome() {
         >
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
             <View style={styles.userModalContent}>
-            {/* Header User Profile */}
-            <View style={styles.userModalHeader}>
-              <TouchableOpacity onPress={handleSelectAvatar} style={styles.modalAvatarContainer}>
-                {activeUser?.avatar ? (
-                  <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.modalAvatar} />
-                ) : (
-                  <Ionicons name="person" size={24} color="#FFF" />
-                )}
-                <View style={styles.avatarEditBadge}>
-                  <Ionicons name="camera" size={12} color="#FFF" />
+              {/* Header User Profile */}
+              <View style={styles.userModalHeader}>
+                <TouchableOpacity onPress={handleSelectAvatar} style={styles.modalAvatarContainer}>
+                  {activeUser?.avatar ? (
+                    <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.modalAvatar} />
+                  ) : (
+                    <Ionicons name="person" size={24} color="#FFF" />
+                  )}
+                  <View style={styles.avatarEditBadge}>
+                    <Ionicons name="camera" size={12} color="#FFF" />
+                  </View>
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.modalUserNameInput}
+                    value={activeUser?.name || ''}
+                    onChangeText={(text) => updateUser({ name: text })}
+                    placeholder="Nombre de usuario"
+                    placeholderTextColor="#A0A0C0"
+                  />
+                  <Text style={styles.userModalHeaderStatus}>Online</Text>
                 </View>
-              </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <TextInput
-                  style={styles.modalUserNameInput}
-                  value={activeUser?.name || ''}
-                  onChangeText={(text) => updateUser({ name: text })}
-                  placeholder="Nombre de usuario"
-                  placeholderTextColor="#A0A0C0"
-                />
-                <Text style={styles.userModalHeaderStatus}>Online</Text>
+              </View>
+
+              {/* Power Buttons */}
+              <View style={styles.powerButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]}
+                  activeOpacity={0.8}
+                  onPress={() => setModalSelectedIndex(0)}
+                >
+                  <Ionicons name="lock-closed-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]}
+                  activeOpacity={0.8}
+                  onPress={() => setModalSelectedIndex(1)}
+                >
+                  <Ionicons name="log-out-outline" size={48} color={modalSelectedIndex === 1 ? styles.powerIconActive.color : styles.powerIcon.color} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setModalSelectedIndex(2);
+                    setUserModalVisible(false);
+                    changeUser();
+                  }}
+                >
+                  <Ionicons name="sync-outline" size={48} color={modalSelectedIndex === 2 ? styles.powerIconActive.color : styles.powerIcon.color} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setModalSelectedIndex(3);
+                    if (Platform.OS === 'web' && (window as any).electronAPI) {
+                      (window as any).electronAPI.closeApp();
+                    }
+                  }}
+                >
+                  <Ionicons name="power-outline" size={48} color={modalSelectedIndex === 3 ? styles.powerIconActive.color : styles.powerIcon.color} />
+                </TouchableOpacity>
+              </View>
+
+
+              {/* Footer Info */}
+              <View style={styles.userModalFooter}>
+                <View style={styles.statusInfo}>
+                  <Ionicons name="desktop-outline" size={16} color="#A0A0C0" />
+                  <Text style={styles.statusText}>Last Login: Sep 18 20:05</Text>
+                </View>
+                <Text style={styles.statusSeparator}>|</Text>
+                <View style={styles.statusInfo}>
+                  <Ionicons name="time-outline" size={16} color="#A0A0C0" />
+                  <Text style={styles.statusText}>Uptime: 6 hours, 5 minutes</Text>
+                </View>
               </View>
             </View>
-
-            {/* Power Buttons */}
-            <View style={styles.powerButtonsContainer}>
-              <TouchableOpacity
-                style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]}
-                activeOpacity={0.8}
-                onPress={() => setModalSelectedIndex(0)}
-              >
-                <Ionicons name="lock-closed-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]}
-                activeOpacity={0.8}
-                onPress={() => setModalSelectedIndex(1)}
-              >
-                <Ionicons name="log-out-outline" size={48} color={modalSelectedIndex === 1 ? styles.powerIconActive.color : styles.powerIcon.color} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setModalSelectedIndex(2);
-                  setUserModalVisible(false);
-                  changeUser();
-                }}
-              >
-                <Ionicons name="sync-outline" size={48} color={modalSelectedIndex === 2 ? styles.powerIconActive.color : styles.powerIcon.color} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setModalSelectedIndex(3);
-                  if (Platform.OS === 'web' && (window as any).electronAPI) {
-                    (window as any).electronAPI.closeApp();
-                  }
-                }}
-              >
-                <Ionicons name="power-outline" size={48} color={modalSelectedIndex === 3 ? styles.powerIconActive.color : styles.powerIcon.color} />
-              </TouchableOpacity>
-            </View>
-
-
-            {/* Footer Info */}
-            <View style={styles.userModalFooter}>
-              <View style={styles.statusInfo}>
-                <Ionicons name="desktop-outline" size={16} color="#A0A0C0" />
-                <Text style={styles.statusText}>Last Login: Sep 18 20:05</Text>
-              </View>
-              <Text style={styles.statusSeparator}>|</Text>
-              <View style={styles.statusInfo}>
-                <Ionicons name="time-outline" size={16} color="#A0A0C0" />
-                <Text style={styles.statusText}>Uptime: 6 hours, 5 minutes</Text>
-              </View>
-            </View>
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+      </Modal>
 
 
     </SafeAreaView>
@@ -1211,23 +1211,23 @@ const styles = StyleSheet.create({
   newsHeaderContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 50, marginBottom: 10 },
   newsSectionTitle: { color: '#00FFFF', fontSize: 10, fontWeight: 'bold', marginLeft: 6, letterSpacing: 1.5 },
   newsScroll: { paddingHorizontal: 50, alignItems: 'center' },
-  newsCardPremium: { 
-    width: 240, 
-    height: 120, 
-    borderRadius: 12, 
-    marginRight: 15, 
-    overflow: 'hidden', 
+  newsCardPremium: {
+    width: 240,
+    height: 120,
+    borderRadius: 12,
+    marginRight: 15,
+    overflow: 'hidden',
     backgroundColor: '#2A2A2A',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)'
   },
   newsImagePremium: { width: '100%', height: '100%', opacity: 0.6 },
-  newsOverlayPremium: { 
-    position: 'absolute', 
-    bottom: 0, 
-    left: 0, 
-    right: 0, 
-    padding: 12, 
+  newsOverlayPremium: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
     backgroundColor: 'rgba(0,0,0,0.6)',
     height: '65%',
     justifyContent: 'flex-end'
@@ -1236,7 +1236,7 @@ const styles = StyleSheet.create({
   newsTitlePremium: { color: '#FFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
   newsLoadingContainer: { height: 120, justifyContent: 'center', alignItems: 'center', width: 240 },
   newsLoadingText: { color: '#666', fontSize: 12, fontStyle: 'italic' },
-  newsContainerVertical: { marginTop: 40, paddingBottom: 20 },
+  newsContainerVertical: { marginTop: 40, maxWidth: 900, paddingBottom: 20 },
   newsListVertical: { paddingHorizontal: 50, gap: 15 },
   newsCardVertical: {
     width: '100%',
