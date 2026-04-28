@@ -1,3 +1,7 @@
+
+
+<img src="docs/WConsola_video.mp4" width="1040px" height="400px">
+
 Para poder ejecutar este proyecto.
 
 1. **Instalar Node.js:** Asegurarse de tener Node.js instalado en su sistema.
