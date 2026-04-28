@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dim
 import { Image } from 'expo-image';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import YoutubePlayer from '@/components/YoutubePlayer';
 import GameDetailView from '@/components/GameDetailView';
 import FavoritesView from '@/components/FavoritesView';
 import { useUser } from '@/contexts/UserContext';
@@ -23,6 +24,9 @@ export interface ConsoleItem {
   description?: string;
   rating?: number;
   isFavorite?: boolean;
+  isLastPlayed?: boolean;
+  lastPlayed?: number;
+  youtubeId?: string;
 }
 
 const DATA_GAMES: ConsoleItem[] = [
@@ -84,8 +88,20 @@ export default function ConsoleHome() {
   const [bgA, setBgA] = useState<any>(null);
   const [bgB, setBgB] = useState<any>(null);
   const [activeLayer, setActiveLayer] = useState<'A' | 'B'>('A');
+  const [showTrailer, setShowTrailer] = useState(false);
   const fade = useSharedValue(0);
   const tabFade = useSharedValue(1);
+
+  useEffect(() => {
+    setShowTrailer(false);
+    const item = currentData[activeIndex];
+    if (item?.youtubeId) {
+      const timer = setTimeout(() => {
+        setShowTrailer(true);
+      }, 3000); // 3 segundos de espera
+      return () => clearTimeout(timer);
+    }
+  }, [activeIndex, activeTab]);
 
   useEffect(() => {
     tabFade.value = 0;
@@ -129,7 +145,7 @@ export default function ConsoleHome() {
     if (Platform.OS === 'web' && (window as any).electronAPI) {
       (window as any).electronAPI.getApps().then((data: any) => {
         let allFormatted: ConsoleItem[] = [];
-        
+
         if (data.games) {
           const formattedGames = data.games.map((g: any) => ({
             id: g.id,
@@ -143,7 +159,8 @@ export default function ConsoleHome() {
             description: g.description,
             rating: g.rating,
             isFavorite: g.isFavorite,
-            lastPlayed: g.lastPlayed
+            lastPlayed: g.lastPlayed,
+            youtubeId: g.youtubeId
           }));
           setGames([...DATA_GAMES, ...formattedGames]);
           allFormatted = [...allFormatted, ...formattedGames];
@@ -160,7 +177,8 @@ export default function ConsoleHome() {
             description: m.description,
             rating: m.rating,
             isFavorite: m.isFavorite,
-            lastPlayed: m.lastPlayed
+            lastPlayed: m.lastPlayed,
+            youtubeId: m.youtubeId
           }));
           setMedia([...DATA_MEDIA, ...formattedMedia]);
           allFormatted = [...allFormatted, ...formattedMedia];
@@ -466,22 +484,36 @@ export default function ConsoleHome() {
     <SafeAreaView style={styles.container}>
       {/* BACKGROUND DINÁMICO (Dual Layer Crossfade) */}
       <View style={StyleSheet.absoluteFill}>
-        {bgA && (
-          <Image
-            source={bgA}
-            style={StyleSheet.absoluteFillObject}
-            contentFit="cover"
-          />
-        )}
-        <Animated.View style={[StyleSheet.absoluteFill, animatedStyleB]}>
-          {bgB && (
-            <Image
-              source={bgB}
-              style={StyleSheet.absoluteFillObject}
-              contentFit="cover"
+        {showTrailer && currentData[activeIndex]?.youtubeId ? (
+          <View style={{ width: windowWidth, height: windowHeight, overflow: 'hidden' }}>
+            <YoutubePlayer
+              height={windowHeight}
+              width={windowWidth}
+              play={true}
+              videoId={currentData[activeIndex].youtubeId}
+              mute={true}
             />
-          )}
-        </Animated.View>
+          </View>
+        ) : (
+          <>
+            {bgA && (
+              <Image
+                source={bgA}
+                style={StyleSheet.absoluteFillObject}
+                contentFit="cover"
+              />
+            )}
+            <Animated.View style={[StyleSheet.absoluteFill, animatedStyleB]}>
+              {bgB && (
+                <Image
+                  source={bgB}
+                  style={StyleSheet.absoluteFillObject}
+                  contentFit="cover"
+                />
+              )}
+            </Animated.View>
+          </>
+        )}
       </View>
       {/* OVERLAY PARA LEGIBILIDAD (Solo si hay fondo) */}
       {currentBg && (

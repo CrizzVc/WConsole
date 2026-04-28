@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Platform, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ConsoleItem } from '../app/(tabs)/index';
+import YoutubePlayer from './YoutubePlayer';
 
 interface GameDetailViewProps {
   isVisible: boolean;
@@ -30,7 +31,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         logo: item.logo?.uri?.startsWith('local-file://') ? item.logo.uri.replace('local-file://', '') : (item.logo?.uri?.startsWith('http') ? item.logo.uri : undefined),
         backgroundImage: item.backgroundImage?.uri?.startsWith('local-file://') ? item.backgroundImage.uri.replace('local-file://', '') : (item.backgroundImage?.uri?.startsWith('http') ? item.backgroundImage.uri : undefined),
         video: item.video?.uri?.startsWith('local-file://') ? item.video.uri.replace('local-file://', '') : (item.video?.uri?.startsWith('http') ? item.video.uri : undefined),
-
+        youtubeId: item.youtubeId,
       };
 
       setEditData(initialData);
@@ -114,7 +115,8 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         const newEditData: any = {
           ...editData,
           rating: game.rating ? game.rating / 20 : (game.aggregated_rating ? game.aggregated_rating / 20 : 5.0),
-          description: game.summary || editData.description
+          description: game.summary || editData.description,
+          youtubeId: game.videos && game.videos.length > 0 ? game.videos[0].video_id : editData.youtubeId
         };
 
         // Si IGDB devuelve una carátula, la usamos (convertimos a alta resolución)
@@ -290,7 +292,13 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               </Text>
 
               <View style={styles.mediaContainer}>
-                {item.video ? (
+                {item.youtubeId ? (
+                  <YoutubePlayer
+                    height={185}
+                    play={isVisible}
+                    videoId={item.youtubeId}
+                  />
+                ) : item.video ? (
                   <View style={styles.videoWrapper}>
                     {/* En Electron/Web usamos un tag de video estándar */}
                     <video

@@ -172,7 +172,7 @@ app.whenReady().then(() => {
         }
         return false;
       };
-      
+
       if (updateInList(data.games || []) || updateInList(data.media || [])) {
         fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
         console.log('DB guardada con éxito');
@@ -257,7 +257,7 @@ app.whenReady().then(() => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'text/plain'
         },
-        body: `fields name, rating, summary, aggregated_rating, cover.url, screenshots.url, artworks.url; search "${title}"; limit 1;`
+        body: `fields name, videos.video_id, videos.name, rating, summary, aggregated_rating, cover.url, screenshots.url, artworks.url; search "${title}"; limit 1;`
 
       });
 
