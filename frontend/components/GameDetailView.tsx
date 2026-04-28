@@ -158,6 +158,21 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
     }
   };
 
+  const handleDeleteApp = async () => {
+    if ((window as any).electronAPI && item.id) {
+      const confirmed = window.confirm(`¿Estás seguro de que quieres eliminar "${item.title}"? Esta acción no se puede deshacer.`);
+      if (confirmed) {
+        const result = await (window as any).electronAPI.deleteApp(item.id);
+        if (result.success) {
+          onClose();
+          if (onRefresh) onRefresh();
+        } else {
+          alert('Error al eliminar: ' + result.error);
+        }
+      }
+    }
+  };
+
 
   const handleSyncSteamGrid = async () => {
     if ((window as any).electronAPI && editData.title) {
@@ -387,12 +402,18 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteApp}>
+                <Ionicons name="trash-outline" size={20} color="#FF2D55" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit}>
-                <Text style={styles.saveBtnText}>Guardar Cambios</Text>
-              </TouchableOpacity>
+              
+              <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit}>
+                  <Text style={styles.saveBtnText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -437,6 +458,16 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#FFF', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 14, backgroundColor: '#00FFFF', borderRadius: 8, marginLeft: 8, alignItems: 'center' },
   saveBtnText: { color: '#000', fontWeight: 'bold' },
+  deleteBtn: {
+    padding: 14,
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 85, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
   syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD700', padding: 12, borderRadius: 8, marginBottom: 20 },
   syncBtnText: { color: '#000', fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
   buttonFocused: {

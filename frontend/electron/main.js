@@ -182,6 +182,31 @@ app.whenReady().then(() => {
     return { success: true, data };
   });
 
+  // IPC: Eliminar una aplicación
+  ipcMain.handle('delete-app', (event, id) => {
+    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    let found = false;
+
+    if (data.games) {
+      const initialLength = data.games.length;
+      data.games = data.games.filter(item => item.id !== id);
+      if (data.games.length < initialLength) found = true;
+    }
+
+    if (!found && data.media) {
+      const initialLength = data.media.length;
+      data.media = data.media.filter(item => item.id !== id);
+      if (data.media.length < initialLength) found = true;
+    }
+
+    if (!found) {
+      return { success: false, error: 'App not found' };
+    }
+
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+    return { success: true };
+  });
+
   // IPC: Ejecutar un programa externo
   ipcMain.handle('launch-app', (event, id, executablePath) => {
     if (!executablePath) return;
