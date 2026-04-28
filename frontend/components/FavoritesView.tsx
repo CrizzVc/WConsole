@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, useWindowDimensions, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { ConsoleItem } from '../app/(tabs)/index';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolate } from 'react-native-reanimated';
 
@@ -10,6 +11,7 @@ interface FavoritesViewProps {
   favorites: ConsoleItem[];
   onClose: () => void;
   onLaunch: (item: ConsoleItem) => void;
+  isLaunching?: boolean;
 }
 
 const FavoriteItem: React.FC<{
@@ -61,7 +63,7 @@ const FavoriteItem: React.FC<{
     );
 };
 
-const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onClose, onLaunch }) => {
+const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onClose, onLaunch, isLaunching }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -96,7 +98,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
 
   // Keyboard Navigation
   useEffect(() => {
-    if (isVisible && Platform.OS === 'web') {
+    if (isVisible && Platform.OS === 'web' && !isLaunching) {
       const handleKeyDown = (e: any) => {
         if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
           e.preventDefault();
@@ -229,6 +231,15 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
         <View style={styles.footer}>
             <Text style={styles.footerText}>{activeIndex + 1} / {favorites.length} Juegos</Text>
         </View>
+
+        {isLaunching && (
+          <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { zIndex: 1000 }]}>
+            <View style={styles.launchingOverlay}>
+              <MaterialCommunityIcons name="controller-classic" size={100} color="#00FFFF" />
+              <Text style={styles.launchingText}>Ejecutándose...</Text>
+            </View>
+          </BlurView>
+        )}
       </View>
     </Modal>
   );
@@ -302,6 +313,23 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginTop: 20 },
   emptySubtext: { color: '#888', fontSize: 16, marginTop: 10 },
+  launchingOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  launchingText: {
+    color: '#00FFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 255, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
 });
 
 export default FavoritesView;

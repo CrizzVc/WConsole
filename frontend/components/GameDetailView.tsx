@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Modal, Platform, TextInput, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { ConsoleItem } from '../app/(tabs)/index';
 import YoutubePlayer from './YoutubePlayer';
 
@@ -10,9 +11,10 @@ interface GameDetailViewProps {
   onClose: () => void;
   onLaunch?: (id: string, path: string) => void;
   onRefresh?: () => void;
+  isLaunching?: boolean;
 }
 
-const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClose, onLaunch, onRefresh }) => {
+const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClose, onLaunch, onRefresh, isLaunching }) => {
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ConsoleItem>>({});
   const [isSyncing, setIsSyncing] = useState(false);
@@ -40,7 +42,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
   // Keyboard navigation within Detail View
   useEffect(() => {
-    if (isVisible && !isEditModalVisible) {
+    if (isVisible && !isEditModalVisible && !isLaunching) {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
           e.preventDefault();
@@ -342,6 +344,15 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             </View>
           </View>
         </View>
+
+        {isLaunching && (
+          <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { zIndex: 1000 }]}>
+            <View style={styles.launchingOverlay}>
+              <MaterialCommunityIcons name="controller-classic" size={100} color="#00FFFF" />
+              <Text style={styles.launchingText}>Ejecutándose...</Text>
+            </View>
+          </BlurView>
+        )}
       </View>
 
       {/* EDIT MODAL */}
@@ -485,6 +496,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 8,
     transform: [{ scale: 1.05 }],
+  },
+  launchingOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  launchingText: {
+    color: '#00FFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 255, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 });
 

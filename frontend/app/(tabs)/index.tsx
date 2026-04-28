@@ -92,6 +92,7 @@ export default function ConsoleHome() {
   const [isSettingsVisible, setSettingsVisible] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'home'>('profile');
   const [homeBackground, setHomeBackground] = useState<any>(null);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   // Background transition states
   const [bgA, setBgA] = useState<any>(null);
@@ -359,6 +360,8 @@ export default function ConsoleHome() {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handleKeyDown = (e: any) => {
+        if (isLaunching) return;
+
         // Si el usuario está escribiendo en un input o textarea, no interferimos con la navegación del sistema
         if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
           e.preventDefault();
@@ -1234,22 +1237,37 @@ export default function ConsoleHome() {
       <GameDetailView
         isVisible={isDetailVisible}
         item={selectedItem}
+        isLaunching={isLaunching}
         onClose={() => setDetailVisible(false)}
         onRefresh={loadApps}
         onLaunch={(id, path) => {
+          console.log('Launching game:', id, path);
           if (Platform.OS === 'web' && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(id, path).then(loadApps);
+            setIsLaunching(true);
+            (window as any).electronAPI.launchApp(id, path).then(() => {
+              console.log('App launched successfully');
+              loadApps();
+              setTimeout(() => {
+                setIsLaunching(false);
+                console.log('isLaunching set to false');
+              }, 4000);
+            });
           }
         }}
       />
 
       <FavoritesView
         isVisible={isFavoritesVisible}
+        isLaunching={isLaunching}
         favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
         onLaunch={(item) => {
           if (item.path && Platform.OS === 'web' && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(item.id, item.path).then(loadApps);
+            setIsLaunching(true);
+            (window as any).electronAPI.launchApp(item.id, item.path).then(() => {
+              loadApps();
+              setTimeout(() => setIsLaunching(false), 4000);
+            });
           }
         }}
       />
@@ -1354,6 +1372,12 @@ export default function ConsoleHome() {
           </View>
         </View>
       </Modal>
+
+
+
+
+
+
       <Modal visible={isSettingsVisible} transparent animationType="slide">
         <View style={styles.settingsOverlay}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
@@ -1579,6 +1603,15 @@ export default function ConsoleHome() {
         </TouchableOpacity>
       </Modal>
 
+      {/* LAUNCHING OVERLAY */}
+      <Modal visible={isLaunching} transparent animationType="fade">
+        <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill}>
+          <View style={styles.launchingOverlay}>
+            <MaterialCommunityIcons name="controller-classic" size={100} color="#00FFFF" />
+            <Text style={styles.launchingText}>Ejecutándose...</Text>
+          </View>
+        </BlurView>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -2183,6 +2216,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 15,
     fontWeight: '600',
+  },
+  launchingOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    zIndex: 9999,
+  },
+  launchingText: {
+    color: '#00FFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 20,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 255, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 });
 
