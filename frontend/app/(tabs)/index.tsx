@@ -58,6 +58,10 @@ export default function ConsoleHome() {
   // States for Game Detail View
   const [isDetailVisible, setDetailVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ConsoleItem | null>(null);
+  const [isUserModalVisible, setUserModalVisible] = useState(false);
+  const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
+
+
 
   const currentData = activeTab === 'Games' ? games : (activeTab === 'Media' ? media : []);
 
@@ -131,7 +135,27 @@ export default function ConsoleHome() {
           }
           return;
         }
+        // User/Power modal controls
+        if (isUserModalVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setUserModalVisible(false);
+          } else if (e.key === 'ArrowRight') {
+            setModalSelectedIndex((prev) => Math.min(prev + 1, 3));
+          } else if (e.key === 'ArrowLeft') {
+            setModalSelectedIndex((prev) => Math.max(prev - 1, 0));
+          } else if (e.key === 'Enter') {
+            if (modalSelectedIndex === 2) { // Cambiar de usuario
+              setUserModalVisible(false);
+              changeUser();
+            } else if (modalSelectedIndex === 3) { // Apagar
+              if ((window as any).electronAPI) (window as any).electronAPI.closeApp();
+            }
+          }
+          return;
+        }
+
         if (isAddModalVisible) return;
+
         const dataLength = currentData.length;
         if (e.key === 'q' || e.key === 'Q') {
           setActiveTab((prev) => {
@@ -212,8 +236,9 @@ export default function ConsoleHome() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
-            onPress={changeUser}
+            onPress={() => setUserModalVisible(true)}
             style={[styles.avatarContainer, styles.avatarActive, activeUser ? { borderColor: activeUser.color } : {}]}
+
             activeOpacity={0.75}
           >
             {activeUser ? (
@@ -361,6 +386,7 @@ export default function ConsoleHome() {
       />
 
       {/* MODAL TO ADD APP */}
+
       <Modal visible={isAddModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -414,6 +440,83 @@ export default function ConsoleHome() {
           </View>
         </View>
       </Modal>
+
+      {/* USER/POWER MODAL */}
+      <Modal visible={isUserModalVisible} transparent animationType="fade">
+        <TouchableOpacity 
+          style={styles.userModalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setUserModalVisible(false)}
+        >
+          <View style={styles.userModalContent}>
+            {/* Header User Profile */}
+            <View style={styles.userModalHeader}>
+              <Ionicons name="person-outline" size={16} color="#E0E0FF" style={{marginRight: 8}} />
+              <Text style={styles.userModalHeaderName}>{activeUser?.name || 'Invitado'}@WConsole</Text>
+            </View>
+
+            {/* Power Buttons */}
+            <View style={styles.powerButtonsContainer}>
+              <TouchableOpacity 
+                style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]} 
+                activeOpacity={0.8}
+                onPress={() => setModalSelectedIndex(0)}
+              >
+                <Ionicons name="lock-closed-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]} 
+                activeOpacity={0.8}
+                onPress={() => setModalSelectedIndex(1)}
+              >
+                <Ionicons name="log-out-outline" size={48} color={modalSelectedIndex === 1 ? styles.powerIconActive.color : styles.powerIcon.color} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]} 
+                activeOpacity={0.8}
+                onPress={() => {
+                  setModalSelectedIndex(2);
+                  setUserModalVisible(false);
+                  changeUser();
+                }}
+              >
+                <Ionicons name="sync-outline" size={48} color={modalSelectedIndex === 2 ? styles.powerIconActive.color : styles.powerIcon.color} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]} 
+                activeOpacity={0.8}
+                onPress={() => {
+                  setModalSelectedIndex(3);
+                  if (Platform.OS === 'web' && (window as any).electronAPI) {
+                    (window as any).electronAPI.closeApp();
+                  }
+                }}
+              >
+                <Ionicons name="power-outline" size={48} color={modalSelectedIndex === 3 ? styles.powerIconActive.color : styles.powerIcon.color} />
+              </TouchableOpacity>
+            </View>
+
+
+            {/* Footer Info */}
+            <View style={styles.userModalFooter}>
+              <View style={styles.statusInfo}>
+                <Ionicons name="desktop-outline" size={16} color="#A0A0C0" />
+                <Text style={styles.statusText}>Last Login: Sep 18 20:05</Text>
+              </View>
+              <Text style={styles.statusSeparator}>|</Text>
+              <View style={styles.statusInfo}>
+                <Ionicons name="time-outline" size={16} color="#A0A0C0" />
+                <Text style={styles.statusText}>Uptime: 6 hours, 5 minutes</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+
     </SafeAreaView>
   );
 }
@@ -481,4 +584,20 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#FFF', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 12, backgroundColor: '#00FFFF', borderRadius: 8, marginLeft: 5, alignItems: 'center' },
   saveBtnText: { color: '#000', fontWeight: 'bold' },
+  // USER/POWER MODAL STYLES
+  userModalOverlay: { flex: 1, backgroundColor: 'rgba(10, 10, 15, 0.95)', justifyContent: 'center', alignItems: 'center' },
+  userModalContent: { width: '90%', maxWidth: 800, alignItems: 'center' },
+  userModalHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(30, 30, 45, 0.8)', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, marginBottom: 40, alignSelf: 'flex-end', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  userModalHeaderAvatar: { width: 30, height: 30, borderRadius: 15, marginRight: 10 },
+  userModalHeaderName: { color: '#E0E0FF', fontSize: 16, fontWeight: '500', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  powerButtonsContainer: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginBottom: 50 },
+  powerButton: { width: 160, height: 160, backgroundColor: 'rgba(40, 40, 60, 0.5)', borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  powerButtonActive: { backgroundColor: '#C4B5FD', borderColor: '#A78BFA' }, // Light purple/lavender
+  powerIcon: { color: '#E0E0FF' },
+  powerIconActive: { color: '#1E1E2E' },
+  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15 },
+  statusInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statusText: { color: '#A0A0C0', fontSize: 14, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  statusSeparator: { color: '#404060', fontSize: 18 },
 });
+

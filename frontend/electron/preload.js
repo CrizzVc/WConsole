@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectImage: () => ipcRenderer.invoke('select-image'),
   selectVideo: () => ipcRenderer.invoke('select-video'),
   updateApp: (appData) => ipcRenderer.invoke('update-app', appData),
+  closeApp: () => ipcRenderer.invoke('close-app'),
 });
+

@@ -197,7 +197,13 @@ app.whenReady().then(() => {
     return null;
   });
 
+  // IPC: Cerrar la aplicación
+  ipcMain.handle('close-app', () => {
+    app.quit();
+  });
+
   createWindow();
+
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
