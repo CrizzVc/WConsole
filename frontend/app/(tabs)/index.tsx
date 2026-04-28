@@ -7,6 +7,8 @@ import YoutubePlayer from '@/components/YoutubePlayer';
 import GameDetailView from '@/components/GameDetailView';
 import FavoritesView from '@/components/FavoritesView';
 import { useUser } from '@/contexts/UserContext';
+import { Linking } from 'react-native';
+import { fetchGamingNews, NewsArticle } from '@/services/newsService';
 
 const TABS = ['Games', 'Media', 'eShop'];
 
@@ -53,6 +55,7 @@ export default function ConsoleHome() {
   const [focusArea, setFocusArea] = useState<FocusArea>('main_carousel');
   const [focusIndex, setFocusIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+  const mainVerticalScrollRef = useRef<ScrollView>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // Dynamic sizing based on window width
@@ -69,6 +72,7 @@ export default function ConsoleHome() {
   const [media, setMedia] = useState<ConsoleItem[]>(DATA_MEDIA);
   const [lastPlayedGame, setLastPlayedGame] = useState<ConsoleItem | null>(null);
   const [currentTime, setCurrentTime] = useState('');
+  const [news, setNews] = useState<NewsArticle[]>([]);
 
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -195,6 +199,7 @@ export default function ConsoleHome() {
 
   useEffect(() => {
     loadApps();
+    fetchGamingNews().then(setNews);
   }, []);
 
   // Gamepad Support
@@ -308,9 +313,18 @@ export default function ConsoleHome() {
           } else if (focusArea === 'main_carousel') {
             setFocusArea('bottom_news');
             setFocusIndex(0);
+            mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
           } else if (focusArea === 'bottom_news') {
-            setFocusArea('footer');
-            setFocusIndex(0);
+            const nextIdx = focusIndex + 1;
+            const maxIdx = news.length; // news items + back to top
+            if (nextIdx <= maxIdx) {
+              setFocusIndex(nextIdx);
+              mainVerticalScrollRef.current?.scrollTo({ y: 350 + nextIdx * 140, animated: true });
+            } else {
+              setFocusArea('footer');
+              setFocusIndex(0);
+              mainVerticalScrollRef.current?.scrollToEnd({ animated: true });
+            }
           }
           return;
         }
@@ -318,10 +332,18 @@ export default function ConsoleHome() {
         if (e.key === 'ArrowUp') {
           if (focusArea === 'footer') {
             setFocusArea('bottom_news');
-            setFocusIndex(0);
+            setFocusIndex(news.length);
+            mainVerticalScrollRef.current?.scrollToEnd({ animated: true });
           } else if (focusArea === 'bottom_news') {
-            setFocusArea('main_carousel');
-            setFocusIndex(activeIndex);
+            const nextIdx = focusIndex - 1;
+            if (nextIdx >= 0) {
+              setFocusIndex(nextIdx);
+              mainVerticalScrollRef.current?.scrollTo({ y: 350 + nextIdx * 140, animated: true });
+            } else {
+              setFocusArea('main_carousel');
+              setFocusIndex(activeIndex);
+              mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
+            }
           } else if (focusArea === 'main_carousel') {
             setFocusArea('header_tabs');
             setFocusIndex(TABS.indexOf(activeTab));
@@ -343,7 +365,7 @@ export default function ConsoleHome() {
             setActiveTab(TABS[nextIdx]);
             setActiveIndex(0);
           } else if (focusArea === 'bottom_news') {
-            setFocusIndex((prev) => Math.min(prev + 1, 2)); // 3 news items
+            // No horizontal move in vertical news list
           }
           return;
         }
@@ -359,7 +381,7 @@ export default function ConsoleHome() {
             setActiveTab(TABS[nextIdx]);
             setActiveIndex(0);
           } else if (focusArea === 'bottom_news') {
-            setFocusIndex((prev) => Math.max(prev - 1, 0));
+            // No horizontal move in vertical news list
           }
           return;
         }
@@ -383,6 +405,15 @@ export default function ConsoleHome() {
             setUserModalVisible(true);
           } else if (focusArea === 'footer') {
             setAddModalVisible(true);
+          } else if (focusArea === 'bottom_news') {
+            if (focusIndex === news.length) { // Back to top button
+              setFocusArea('main_carousel');
+              setFocusIndex(activeIndex);
+              mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
+              return;
+            }
+            const article = news[focusIndex];
+            if (article) Linking.openURL(article.url);
           }
           return;
         }
@@ -647,221 +678,243 @@ export default function ConsoleHome() {
         </View>
       </View>
 
-      {/* MAIN CONTENT */}
-      <Animated.View style={[styles.mainContent, animatedTabContentStyle]}>
-        <View style={styles.activeTitleContainer}>
-          <View style={styles.cartridgeIcon} />
-          <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>
-            {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Último: ${lastPlayedGame.title}` : 'Último Jugado') : currentData[activeIndex]?.title}
-          </Text>
-        </View>
-
-        <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
-            snapToInterval={ITEM_WIDTH}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            scrollEventThrottle={16}
-            onLayout={() => {
-              if (scrollRef.current) {
-                const scrollX = activeIndex * ITEM_WIDTH;
-                scrollRef.current.scrollTo({ x: scrollX, animated: false });
-              }
-            }}
-          >
-            {currentData.map((item, index) => {
-              const isActive = index === activeIndex;
-              const cardContainerStyle = [
-                styles.cardBase,
-                { width: CARD_SIZE, height: CARD_SIZE },
-                isActive && styles.cardActive
-              ];
-
-              if (item.isGrid) {
-                return (
-                  <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                    <View style={[styles.folderContainer, cardContainerStyle]}>
-                      <View style={styles.folderHeader}>
-                        <MaterialCommunityIcons name="view-grid" size={16} color="#00FFFF" />
-                        <Text style={styles.folderTitle}> Favorite Media</Text>
-                      </View>
-                      <View style={styles.folderContent}>
-                        {(() => {
-                          const favs = media.filter(m => m.isFavorite);
-                          if (favs.length === 0) {
-                            return (
-                              <View style={styles.folderEmpty}>
-                                <Ionicons name="apps-outline" size={30} color="rgba(0,255,255,0.2)" />
-                              </View>
-                            );
-                          }
-                          if (favs.length === 1) {
-                            return <Image source={favs[0].image} style={styles.folderImgFull} />;
-                          }
-                          if (favs.length === 2) {
-                            return (
-                              <View style={styles.folderCol}>
-                                <Image source={favs[0].image} style={styles.folderImgWide} />
-                                <Image source={favs[1].image} style={styles.folderImgWide} />
-                              </View>
-                            );
-                          }
-                          if (favs.length === 3) {
+      {/* SCROLLABLE CONTENT */}
+      <ScrollView
+        ref={mainVerticalScrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={false} // Only scroll via navigation/code for console feel
+      >
+        {/* MAIN CONTENT */}
+        <Animated.View style={[styles.mainContent, animatedTabContentStyle]}>
+          <View style={styles.activeTitleContainer}>
+            <View style={styles.cartridgeIcon} />
+            <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>
+              {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Último: ${lastPlayedGame.title}` : 'Último Jugado') : currentData[activeIndex]?.title}
+            </Text>
+          </View>
+  
+          <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingLeft: LEFT_PADDING, paddingRight: RIGHT_PADDING, alignItems: 'center' }}
+              snapToInterval={ITEM_WIDTH}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              scrollEventThrottle={16}
+              onLayout={() => {
+                if (scrollRef.current) {
+                  const scrollX = activeIndex * ITEM_WIDTH;
+                  scrollRef.current.scrollTo({ x: scrollX, animated: false });
+                }
+              }}
+            >
+              {currentData.map((item, index) => {
+                const isActive = index === activeIndex;
+                const cardContainerStyle = [
+                  styles.cardBase,
+                  { width: CARD_SIZE, height: CARD_SIZE },
+                  isActive && styles.cardActive
+                ];
+  
+                if (item.isGrid) {
+                  return (
+                    <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                      <View style={[styles.folderContainer, cardContainerStyle]}>
+                        <View style={styles.folderHeader}>
+                          <MaterialCommunityIcons name="view-grid" size={16} color="#00FFFF" />
+                          <Text style={styles.folderTitle}> Favorite Media</Text>
+                        </View>
+                        <View style={styles.folderContent}>
+                          {(() => {
+                            const favs = media.filter(m => m.isFavorite);
+                            if (favs.length === 0) {
+                              return (
+                                <View style={styles.folderEmpty}>
+                                  <Ionicons name="apps-outline" size={30} color="rgba(0,255,255,0.2)" />
+                                </View>
+                              );
+                            }
+                            if (favs.length === 1) {
+                              return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                            }
+                            if (favs.length === 2) {
+                              return (
+                                <View style={styles.folderCol}>
+                                  <Image source={favs[0].image} style={styles.folderImgWide} />
+                                  <Image source={favs[1].image} style={styles.folderImgWide} />
+                                </View>
+                              );
+                            }
+                            if (favs.length === 3) {
+                              return (
+                                <View style={styles.folderCol}>
+                                  <View style={styles.folderRow}>
+                                    <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                    <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                  </View>
+                                  <Image source={favs[2].image} style={styles.folderImgWide} />
+                                </View>
+                              );
+                            }
+                            // 4 or more
                             return (
                               <View style={styles.folderCol}>
                                 <View style={styles.folderRow}>
                                   <Image source={favs[0].image} style={styles.folderImgSmall} />
                                   <Image source={favs[1].image} style={styles.folderImgSmall} />
                                 </View>
-                                <Image source={favs[2].image} style={styles.folderImgWide} />
+                                <View style={styles.folderRow}>
+                                  <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                  <Image source={favs[3].image} style={styles.folderImgSmall} />
+                                </View>
                               </View>
                             );
-                          }
-                          // 4 or more
-                          return (
-                            <View style={styles.folderCol}>
-                              <View style={styles.folderRow}>
-                                <Image source={favs[0].image} style={styles.folderImgSmall} />
-                                <Image source={favs[1].image} style={styles.folderImgSmall} />
-                              </View>
-                              <View style={styles.folderRow}>
-                                <Image source={favs[2].image} style={styles.folderImgSmall} />
-                                <Image source={favs[3].image} style={styles.folderImgSmall} />
-                              </View>
-                            </View>
-                          );
-                        })()}
+                          })()}
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }
-
-              if (item.isFolder) {
-                return (
-                  <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                    <View style={[styles.folderContainer, cardContainerStyle]}>
-                      <View style={styles.folderHeader}>
-                        <Ionicons name="heart" size={16} color="#FF2D55" />
-                        <Text style={styles.folderTitle}> Favorite Games</Text>
-                      </View>
-                      <View style={styles.folderContent}>
-                        {(() => {
-                          const favs = games.filter(g => g.isFavorite);
-                          if (favs.length === 0) {
-                            return (
-                              <View style={styles.folderEmpty}>
-                                <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
-                              </View>
-                            );
-                          }
-                          if (favs.length === 1) {
-                            return <Image source={favs[0].image} style={styles.folderImgFull} />;
-                          }
-                          if (favs.length === 2) {
-                            return (
-                              <View style={styles.folderCol}>
-                                <Image source={favs[0].image} style={styles.folderImgWide} />
-                                <Image source={favs[1].image} style={styles.folderImgWide} />
-                              </View>
-                            );
-                          }
-                          if (favs.length === 3) {
+                    </TouchableOpacity>
+                  );
+                }
+  
+                if (item.isFolder) {
+                  return (
+                    <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                      <View style={[styles.folderContainer, cardContainerStyle]}>
+                        <View style={styles.folderHeader}>
+                          <Ionicons name="heart" size={16} color="#FF2D55" />
+                          <Text style={styles.folderTitle}> Favorite Games</Text>
+                        </View>
+                        <View style={styles.folderContent}>
+                          {(() => {
+                            const favs = games.filter(g => g.isFavorite);
+                            if (favs.length === 0) {
+                              return (
+                                <View style={styles.folderEmpty}>
+                                  <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
+                                </View>
+                              );
+                            }
+                            if (favs.length === 1) {
+                              return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                            }
+                            if (favs.length === 2) {
+                              return (
+                                <View style={styles.folderCol}>
+                                  <Image source={favs[0].image} style={styles.folderImgWide} />
+                                  <Image source={favs[1].image} style={styles.folderImgWide} />
+                                </View>
+                              );
+                            }
+                            if (favs.length === 3) {
+                              return (
+                                <View style={styles.folderCol}>
+                                  <View style={styles.folderRow}>
+                                    <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                    <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                  </View>
+                                  <Image source={favs[2].image} style={styles.folderImgWide} />
+                                </View>
+                              );
+                            }
+                            // 4 or more
                             return (
                               <View style={styles.folderCol}>
                                 <View style={styles.folderRow}>
                                   <Image source={favs[0].image} style={styles.folderImgSmall} />
                                   <Image source={favs[1].image} style={styles.folderImgSmall} />
                                 </View>
-                                <Image source={favs[2].image} style={styles.folderImgWide} />
+                                <View style={styles.folderRow}>
+                                  <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                  <Image source={favs[3].image} style={styles.folderImgSmall} />
+                                </View>
                               </View>
                             );
-                          }
-                          // 4 or more
-                          return (
-                            <View style={styles.folderCol}>
-                              <View style={styles.folderRow}>
-                                <Image source={favs[0].image} style={styles.folderImgSmall} />
-                                <Image source={favs[1].image} style={styles.folderImgSmall} />
-                              </View>
-                              <View style={styles.folderRow}>
-                                <Image source={favs[2].image} style={styles.folderImgSmall} />
-                                <Image source={favs[3].image} style={styles.folderImgSmall} />
-                              </View>
-                            </View>
-                          );
-                        })()}
+                          })()}
+                        </View>
                       </View>
-                    </View>
+                    </TouchableOpacity>
+                  );
+                }
+  
+                return (
+                  <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                    <Image
+                      source={item.isLastPlayed ? (lastPlayedGame?.image ?? item.image) : item.image}
+                      style={[styles.cardImage, cardContainerStyle]}
+                    />
                   </TouchableOpacity>
                 );
-              }
-
-              return (
-                <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                  <Image
-                    source={item.isLastPlayed ? (lastPlayedGame?.image ?? item.image) : item.image}
-                    style={[styles.cardImage, cardContainerStyle]}
-                  />
+              })}
+            </ScrollView>
+          </View>
+  
+          <View style={styles.activeSubtitleContainer}>
+            <Text style={styles.activeSubtitle}>
+              {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Jugado recientemente` : 'Ningún juego ejecutado') : currentData[activeIndex]?.time}
+            </Text>
+          </View>
+        </Animated.View>
+  
+        {/* BOTTOM NEWS SECTION (VERTICAL) */}
+        <View style={styles.newsContainerVertical}>
+          <View style={styles.newsHeaderContainer}>
+            <Ionicons name="newspaper-outline" size={14} color="#00FFFF" />
+            <Text style={styles.newsSectionTitle}>ÚLTIMAS NOTICIAS</Text>
+          </View>
+          <View style={styles.newsListVertical}>
+            {news.length > 0 ? (
+              news.map((article, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.newsCardVertical,
+                    (focusArea === 'bottom_news' && focusIndex === index) && styles.itemFocused
+                  ]}
+                  onPress={() => {
+                    setFocusArea('bottom_news');
+                    setFocusIndex(index);
+                    Linking.openURL(article.url);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Image source={{ uri: article.urlToImage }} style={styles.newsImageVertical} contentFit="cover" />
+                  <View style={styles.newsOverlayVertical}>
+                    <Text style={styles.newsSourcePremium}>{article.source.name.toUpperCase()}</Text>
+                    <Text numberOfLines={2} style={styles.newsTitleVertical}>{article.title}</Text>
+                    <Text numberOfLines={2} style={styles.newsDescVertical}>{article.description}</Text>
+                  </View>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              ))
+            ) : (
+              <View style={styles.newsLoadingContainer}>
+                <Text style={styles.newsLoadingText}>Cargando novedades del mundo gaming...</Text>
+              </View>
+            )}
+            
+            {/* BACK TO TOP BUTTON at the end of the vertical list */}
+            {news.length > 0 && (
+              <TouchableOpacity
+                style={[
+                  styles.backToTopCardVertical,
+                  (focusArea === 'bottom_news' && focusIndex === news.length) && styles.itemFocused
+                ]}
+                onPress={() => {
+                  setFocusArea('main_carousel');
+                  setFocusIndex(activeIndex);
+                  mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
+                }}
+              >
+                <Ionicons name="arrow-up" size={24} color="#00FFFF" />
+                <Text style={styles.backToTopText}>VOLVER AL PRINCIPIO</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-
-        <View style={styles.activeSubtitleContainer}>
-          <Text style={styles.activeSubtitle}>
-            {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Jugado recientemente` : 'Ningún juego ejecutado') : currentData[activeIndex]?.time}
-          </Text>
-        </View>
-      </Animated.View>
-
-      {/* BOTTOM NEWS ROW */}
-      <View style={styles.newsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.newsScroll}>
-          <TouchableOpacity
-            style={[styles.newsCard, (focusArea === 'bottom_news' && focusIndex === 0) && styles.itemFocused]}
-            onPress={() => {
-              setFocusArea('bottom_news');
-              setFocusIndex(0);
-            }}
-            accessible={false}
-          >
-            <Text style={styles.newsText}>Official News</Text>
-            <View style={styles.newsDot} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 1) && styles.itemFocused]}
-            onPress={() => {
-              setFocusArea('bottom_news');
-              setFocusIndex(1);
-            }}
-            accessible={false}
-          >
-            <Image source={require('@/assets/images/game_adventure.png')} style={styles.newsVideoImg} />
-            <View style={styles.playIconContainer}>
-              <Ionicons name="play" size={16} color="#FFF" />
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 2) && styles.itemFocused]}
-            onPress={() => {
-              setFocusArea('bottom_news');
-              setFocusIndex(2);
-            }}
-            accessible={false}
-          >
-            <Image source={require('@/assets/images/game_cyberpunk.png')} style={styles.newsVideoImg} />
-            <View style={styles.playIconContainer}>
-              <Ionicons name="play" size={16} color="#FFF" />
-            </View>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+      </ScrollView>
 
       {/* FOOTER CONTROLS */}
       <View style={styles.footer}>
@@ -1154,14 +1207,86 @@ const styles = StyleSheet.create({
   folderEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-  newsContainer: { height: 120, justifyContent: 'center' },
+  newsContainer: { height: 160, justifyContent: 'center', marginTop: 10 },
+  newsHeaderContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 50, marginBottom: 10 },
+  newsSectionTitle: { color: '#00FFFF', fontSize: 10, fontWeight: 'bold', marginLeft: 6, letterSpacing: 1.5 },
   newsScroll: { paddingHorizontal: 50, alignItems: 'center' },
-  newsCard: { width: 200, height: 80, backgroundColor: '#2A2A2A', borderRadius: 10, marginRight: 15, padding: 15, justifyContent: 'space-between', flexDirection: 'row' },
-  newsText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-  newsDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00FFFF', marginTop: 5 },
-  newsVideoCard: { width: 140, height: 80, borderRadius: 10, marginRight: 15, overflow: 'hidden', backgroundColor: '#111' },
-  newsVideoImg: { width: '100%', height: '100%', opacity: 0.7 },
-  playIconContainer: { position: 'absolute', top: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 4 },
+  newsCardPremium: { 
+    width: 240, 
+    height: 120, 
+    borderRadius: 12, 
+    marginRight: 15, 
+    overflow: 'hidden', 
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)'
+  },
+  newsImagePremium: { width: '100%', height: '100%', opacity: 0.6 },
+  newsOverlayPremium: { 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 0, 
+    right: 0, 
+    padding: 12, 
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    height: '65%',
+    justifyContent: 'flex-end'
+  },
+  newsSourcePremium: { color: '#00FFFF', fontSize: 9, fontWeight: '900', marginBottom: 4 },
+  newsTitlePremium: { color: '#FFF', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  newsLoadingContainer: { height: 120, justifyContent: 'center', alignItems: 'center', width: 240 },
+  newsLoadingText: { color: '#666', fontSize: 12, fontStyle: 'italic' },
+  newsContainerVertical: { marginTop: 40, paddingBottom: 20 },
+  newsListVertical: { paddingHorizontal: 50, gap: 15 },
+  newsCardVertical: {
+    width: '100%',
+    height: 120,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 15,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(10px)',
+  } as any,
+  newsImageVertical: {
+    width: 180,
+    height: '100%',
+  },
+  newsOverlayVertical: {
+    flex: 1,
+    padding: 15,
+    justifyContent: 'center',
+  },
+  newsTitleVertical: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  newsDescVertical: {
+    color: '#AAA',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  backToTopCardVertical: {
+    width: '100%',
+    height: 80,
+    backgroundColor: 'rgba(0,255,255,0.05)',
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,255,255,0.2)',
+    marginTop: 10,
+  },
+  backToTopText: {
+    color: '#00FFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginTop: 5,
+    letterSpacing: 2
+  },
   footer: { height: 60, borderTopWidth: 1, borderTopColor: '#333', backgroundColor: '#1E1E1E', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 30 },
   footerLeft: { flexDirection: 'row', alignItems: 'center' },
   footerRight: { flexDirection: 'row', alignItems: 'center' },
