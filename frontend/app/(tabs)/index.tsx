@@ -43,6 +43,11 @@ export default function ConsoleHome() {
   const { activeUser, changeUser } = useUser();
   const [activeTab, setActiveTab] = useState('Games');
   const [activeIndex, setActiveIndex] = useState(0);
+  
+  // Focus management
+  type FocusArea = 'header_user' | 'header_tabs' | 'main_carousel' | 'bottom_news' | 'footer';
+  const [focusArea, setFocusArea] = useState<FocusArea>('main_carousel');
+  const [focusIndex, setFocusIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -197,33 +202,81 @@ export default function ConsoleHome() {
           return;
         }
 
-        if (isAddModalVisible || isHomeBgModalVisible) return;
+        if (isAddModalVisible || isHomeBgModalVisible || isFavoritesVisible) return;
 
-        const dataLength = currentData.length;
-        if (e.key === 'q' || e.key === 'Q') {
-          setActiveTab((prev) => {
-            const idx = TABS.indexOf(prev);
-            if (idx > 0) { setActiveIndex(0); return TABS[idx - 1]; }
-            return prev;
-          });
-        } else if (e.key === 'e' || e.key === 'E') {
-          setActiveTab((prev) => {
-            const idx = TABS.indexOf(prev);
-            if (idx < TABS.length - 1) { setActiveIndex(0); return TABS[idx + 1]; }
-            return prev;
-          });
-        } else if (e.key === 'ArrowRight') {
-          setActiveIndex((prev) => Math.min(prev + 1, dataLength - 1));
-        } else if (e.key === 'ArrowLeft') {
-          setActiveIndex((prev) => Math.max(prev - 1, 0));
-        } else if (e.key === 'Enter') {
-          const item = currentData[activeIndex];
-          if (item) {
-            if (item.isFolder || item.isGrid) {
-              setFavoritesVisible(true);
-              return;
-            }
-            if (!item.isGrid) {
+        // --- SPATIAL NAVIGATION ---
+        
+        if (e.key === 'ArrowDown') {
+          if (focusArea === 'header_user' || focusArea === 'header_tabs') {
+            setFocusArea('main_carousel');
+            setFocusIndex(activeIndex);
+          } else if (focusArea === 'main_carousel') {
+            setFocusArea('bottom_news');
+            setFocusIndex(0);
+          } else if (focusArea === 'bottom_news') {
+            setFocusArea('footer');
+            setFocusIndex(0);
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowUp') {
+          if (focusArea === 'footer') {
+            setFocusArea('bottom_news');
+            setFocusIndex(0);
+          } else if (focusArea === 'bottom_news') {
+            setFocusArea('main_carousel');
+            setFocusIndex(activeIndex);
+          } else if (focusArea === 'main_carousel') {
+            setFocusArea('header_tabs');
+            setFocusIndex(TABS.indexOf(activeTab));
+          } else if (focusArea === 'header_tabs') {
+            setFocusArea('header_user');
+            setFocusIndex(0);
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowRight') {
+          if (focusArea === 'main_carousel') {
+            const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
+            setActiveIndex(nextIdx);
+            setFocusIndex(nextIdx);
+          } else if (focusArea === 'header_tabs') {
+            const nextIdx = Math.min(focusIndex + 1, TABS.length - 1);
+            setFocusIndex(nextIdx);
+            setActiveTab(TABS[nextIdx]);
+            setActiveIndex(0);
+          } else if (focusArea === 'bottom_news') {
+            setFocusIndex((prev) => Math.min(prev + 1, 2)); // 3 news items
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+          if (focusArea === 'main_carousel') {
+            const nextIdx = Math.max(activeIndex - 1, 0);
+            setActiveIndex(nextIdx);
+            setFocusIndex(nextIdx);
+          } else if (focusArea === 'header_tabs') {
+            const nextIdx = Math.max(focusIndex - 1, 0);
+            setFocusIndex(nextIdx);
+            setActiveTab(TABS[nextIdx]);
+            setActiveIndex(0);
+          } else if (focusArea === 'bottom_news') {
+            setFocusIndex((prev) => Math.max(prev - 1, 0));
+          }
+          return;
+        }
+
+        if (e.key === 'Enter') {
+          if (focusArea === 'main_carousel') {
+            const item = currentData[activeIndex];
+            if (item) {
+              if (item.isFolder || item.isGrid) {
+                setFavoritesVisible(true);
+                return;
+              }
               if (activeTab === 'Games' && activeIndex === 0) {
                 setHomeBgModalVisible(true);
                 return;
@@ -231,13 +284,32 @@ export default function ConsoleHome() {
               setSelectedItem(item);
               setDetailVisible(true);
             }
+          } else if (focusArea === 'header_user') {
+            setUserModalVisible(true);
+          } else if (focusArea === 'footer') {
+            setAddModalVisible(true);
           }
+          return;
+        }
+
+        if (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E') {
+          const direction = (e.key === 'q' || e.key === 'Q') ? -1 : 1;
+          setActiveTab((prev) => {
+            const idx = TABS.indexOf(prev);
+            const nextIdx = idx + direction;
+            if (nextIdx >= 0 && nextIdx < TABS.length) {
+              setActiveIndex(0);
+              if (focusArea === 'header_tabs') setFocusIndex(nextIdx);
+              return TABS[nextIdx];
+            }
+            return prev;
+          });
         }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [activeTab, currentData, activeIndex, isAddModalVisible, isDetailVisible, selectedItem]);
+  }, [activeTab, currentData, activeIndex, focusArea, focusIndex, isAddModalVisible, isDetailVisible, isUserModalVisible, isFavoritesVisible, selectedItem, modalSelectedIndex]);
 
   // Auto-scroll: with dynamic padding the active item always lands at the screen center
   useEffect(() => {
@@ -252,6 +324,11 @@ export default function ConsoleHome() {
   }, [activeIndex, activeTab, ITEM_WIDTH, windowWidth]);
 
   const handleAppPress = (index: number, item: ConsoleItem) => {
+    // Sincronizar foco con el clic
+    setFocusArea('main_carousel');
+    setActiveIndex(index);
+    setFocusIndex(index);
+
     if (activeIndex === index) {
       if (activeTab === 'Games' && index === 0) {
         setHomeBgModalVisible(true);
@@ -265,8 +342,6 @@ export default function ConsoleHome() {
         setSelectedItem(item);
         setDetailVisible(true);
       }
-    } else {
-      setActiveIndex(index);
     }
   };
 
@@ -383,9 +458,16 @@ export default function ConsoleHome() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
-            onPress={() => setUserModalVisible(true)}
-            style={[styles.avatarContainer, styles.avatarActive, activeUser ? { borderColor: activeUser.color } : {}]}
-
+            onPress={() => {
+              setFocusArea('header_user');
+              setUserModalVisible(true);
+            }}
+            style={[
+              styles.avatarContainer, 
+              styles.avatarActive, 
+              activeUser ? { borderColor: activeUser.color } : {},
+              focusArea === 'header_user' && styles.itemFocused
+            ]}
             activeOpacity={0.75}
           >
             {activeUser ? (
@@ -398,8 +480,15 @@ export default function ConsoleHome() {
 
         <View style={styles.headerCenter}>
           <View style={styles.lrButton}><Text style={styles.lrText}>L</Text></View>
-          {TABS.map((tab) => (
-            <Text key={tab} style={[styles.navItem, activeTab === tab && styles.navItemActive]}>
+          {TABS.map((tab, idx) => (
+            <Text 
+              key={tab} 
+              style={[
+                styles.navItem, 
+                activeTab === tab && styles.navItemActive,
+                (focusArea === 'header_tabs' && focusIndex === idx) && styles.tabFocused
+              ]}
+            >
               {tab}
             </Text>
           ))}
@@ -586,17 +675,35 @@ export default function ConsoleHome() {
       {/* BOTTOM NEWS ROW */}
       <View style={styles.newsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.newsScroll}>
-          <TouchableOpacity style={styles.newsCard}>
+          <TouchableOpacity 
+            style={[styles.newsCard, (focusArea === 'bottom_news' && focusIndex === 0) && styles.itemFocused]}
+            onPress={() => {
+              setFocusArea('bottom_news');
+              setFocusIndex(0);
+            }}
+          >
             <Text style={styles.newsText}>Official News</Text>
             <View style={styles.newsDot} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.newsVideoCard}>
+          <TouchableOpacity 
+            style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 1) && styles.itemFocused]}
+            onPress={() => {
+              setFocusArea('bottom_news');
+              setFocusIndex(1);
+            }}
+          >
             <Image source={require('@/assets/images/game_adventure.png')} style={styles.newsVideoImg} />
             <View style={styles.playIconContainer}>
               <Ionicons name="play" size={16} color="#FFF" />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.newsVideoCard}>
+          <TouchableOpacity 
+            style={[styles.newsVideoCard, (focusArea === 'bottom_news' && focusIndex === 2) && styles.itemFocused]}
+            onPress={() => {
+              setFocusArea('bottom_news');
+              setFocusIndex(2);
+            }}
+          >
             <Image source={require('@/assets/images/game_cyberpunk.png')} style={styles.newsVideoImg} />
             <View style={styles.playIconContainer}>
               <Ionicons name="play" size={16} color="#FFF" />
@@ -612,7 +719,14 @@ export default function ConsoleHome() {
           <Text style={styles.footerHint}><Ionicons name="apps" size={14} /> Explore</Text>
         </View>
         <View style={styles.footerRight}>
-          <TouchableOpacity onPress={() => setAddModalVisible(true)} style={styles.footerBtn}>
+          <TouchableOpacity 
+            onPress={() => {
+              setFocusArea('footer');
+              setFocusIndex(0);
+              setAddModalVisible(true);
+            }} 
+            style={[styles.footerBtn, (focusArea === 'footer' && focusIndex === 0) && styles.footerBtnFocused]}
+          >
             <Text style={styles.footerHint}><Text style={styles.btnIcon}> + </Text> Añadir App</Text>
           </TouchableOpacity>
           <Text style={styles.footerHint}><Text style={styles.btnIcon}> X </Text> Close Software</Text>
@@ -912,5 +1026,27 @@ const styles = StyleSheet.create({
   statusInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusText: { color: '#A0A0C0', fontSize: 14, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   statusSeparator: { color: '#404060', fontSize: 18 },
+  
+  // New Focus Styles
+  itemFocused: {
+    borderWidth: 3,
+    borderColor: '#00FFFF',
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    transform: [{ scale: 1.05 }],
+  },
+  tabFocused: {
+    color: '#00FFFF',
+    borderBottomWidth: 2,
+    borderBottomColor: '#00FFFF',
+    paddingBottom: 2,
+  },
+  footerBtnFocused: {
+    backgroundColor: 'rgba(0, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
 });
 

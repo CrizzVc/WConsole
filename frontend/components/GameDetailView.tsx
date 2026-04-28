@@ -15,10 +15,12 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ConsoleItem>>({});
   const [isSyncing, setIsSyncing] = useState(false);
+  const [focusIndex, setFocusIndex] = useState(0); // 0: Inicio, 1: Editar, 2: Favorito
 
 
   useEffect(() => {
     if (item) {
+      setFocusIndex(0); // Reset focus when opening
       const initialData: any = {
         id: item.id,
         title: item.title,
@@ -34,6 +36,35 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
       setEditData(initialData);
     }
   }, [item, isVisible]);
+
+  // Keyboard navigation within Detail View
+  useEffect(() => {
+    if (isVisible && !isEditModalVisible) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'ArrowRight') {
+          setFocusIndex((prev) => Math.min(prev + 1, 2));
+        } else if (e.key === 'ArrowLeft') {
+          setFocusIndex((prev) => Math.max(prev - 1, 0));
+        } else if (e.key === 'Enter') {
+          if (focusIndex === 0) {
+            // Launch app
+            if (item?.path) {
+              if (onLaunch) onLaunch(item.path);
+              else if ((window as any).electronAPI) (window as any).electronAPI.launchApp(item.path);
+            }
+          } else if (focusIndex === 1) {
+            setEditModalVisible(true);
+          } else if (focusIndex === 2) {
+            handleToggleFavorite();
+          }
+        } else if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+          onClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isVisible, isEditModalVisible, focusIndex, item, onLaunch, onClose]);
 
   if (!item) return null;
 
@@ -142,6 +173,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
     }
   };
 
+
   return (
     <Modal visible={isVisible} transparent={false} animationType="fade" onRequestClose={onClose}>
       <View style={styles.detailContainer}>
@@ -190,8 +222,13 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
               <View style={styles.detailActions}>
                 <TouchableOpacity
-                  style={[styles.playButton, , { backgroundColor: 'rgba(0, 189, 16, 0.62)' }]}
+                  style={[
+                    styles.playButton, 
+                    { backgroundColor: 'rgba(0, 189, 16, 0.62)' },
+                    focusIndex === 0 && styles.buttonFocused
+                  ]}
                   onPress={() => {
+                    setFocusIndex(0);
                     if (item.path) {
                       if (onLaunch) {
                         onLaunch(item.path);
@@ -206,16 +243,30 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.playButton, { backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 10 }]}
-                  onPress={() => setEditModalVisible(true)}
+                  style={[
+                    styles.playButton, 
+                    { backgroundColor: 'rgba(255,255,255,0.05)', marginLeft: 10 },
+                    focusIndex === 1 && styles.buttonFocused
+                  ]}
+                  onPress={() => {
+                    setFocusIndex(1);
+                    setEditModalVisible(true);
+                  }}
                 >
                   <Ionicons name="settings-outline" size={18} color="#FFF" />
                   <Text style={styles.playButtonText}>Editar</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.favoriteButton, item.isFavorite && styles.favoriteButtonActive]}
-                  onPress={handleToggleFavorite}
+                  style={[
+                    styles.favoriteButton, 
+                    item.isFavorite && styles.favoriteButtonActive,
+                    focusIndex === 2 && styles.buttonFocused
+                  ]}
+                  onPress={() => {
+                    setFocusIndex(2);
+                    handleToggleFavorite();
+                  }}
                 >
                   <Ionicons name={item.isFavorite ? "heart" : "heart-outline"} size={22} color={item.isFavorite ? "#FF2D55" : "#FFF"} />
                 </TouchableOpacity>
@@ -371,6 +422,15 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#000', fontWeight: 'bold' },
   syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD700', padding: 12, borderRadius: 8, marginBottom: 20 },
   syncBtnText: { color: '#000', fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
+  buttonFocused: {
+    borderColor: '#00FFFF',
+    borderWidth: 2,
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    transform: [{ scale: 1.05 }],
+  },
 });
 
 
