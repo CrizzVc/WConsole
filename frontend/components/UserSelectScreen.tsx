@@ -30,17 +30,17 @@ interface UserSelectScreenProps {
 }
 
 const DEFAULT_USERS: UserProfile[] = [
-  { 
-    id: '1', 
-    name: 'Player 1', 
-    avatar: 'https://i.pravatar.cc/200?img=11', 
+  {
+    id: '1',
+    name: 'Player 1',
+    avatar: 'assets/images/userDefault.jpeg',
     color: '#FF3B30',
     settings: { autoPlayVideo: true }
   },
-  { 
-    id: '2', 
-    name: 'Player 2', 
-    avatar: 'https://i.pravatar.cc/200?img=47', 
+  {
+    id: '2',
+    name: 'Player 2',
+    avatar: 'assets/images/userDefault.jpeg',
     color: '#00D4FF',
     settings: { autoPlayVideo: true }
   },
@@ -82,7 +82,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         localStorage.setItem('console_users', JSON.stringify(DEFAULT_USERS));
         setUsers(DEFAULT_USERS);
         setHoveredId(DEFAULT_USERS[0].id);
-        
+
         // Guardar por defecto en DB también
         if (Platform.OS === 'web' && (window as any).electronAPI) {
           (window as any).electronAPI.saveUsers(DEFAULT_USERS);
@@ -173,7 +173,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
       if (gp) {
         const now = Date.now();
         const buttons = gp.buttons;
-        
+
         const dispatch = (key: string) => {
           setInputMode('gamepad');
           const event = new KeyboardEvent('keydown', { key } as any);
@@ -223,15 +223,15 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
     <View style={styles.container}>
       {/* BACKGROUND LAYER */}
       {homeBg ? (
-        <Image 
-          source={{ uri: homeBg }} 
-          style={styles.blurredBg} 
+        <Image
+          source={{ uri: homeBg }}
+          style={styles.blurredBg}
           blurRadius={40}
         />
       ) : (
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgInterpolate }]} />
       )}
-      
+
       {/* DARK OVERLAY */}
       <View style={styles.overlay} />
 
@@ -252,7 +252,7 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.cardWrapper}
-          onPress={() => {}}
+          onPress={() => { }}
           {...(Platform.OS === 'web' ? {
             onMouseEnter: () => setHoveredId('add'),
             onMouseLeave: () => setHoveredId(null)
@@ -281,13 +281,13 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
             >
               {/* Removed focus indicator */}
               <View style={[
-                styles.card, 
+                styles.card,
                 isFocused && styles.cardFocused,
                 isFocused && { borderColor: '#FFF', borderWidth: 3 }
               ]}>
-                <Image 
-                  source={{ uri: (user as any).avatarBase64 || user.avatar }} 
-                  style={styles.avatarImg} 
+                <Image
+                  source={{ uri: (user as any).avatarBase64 || user.avatar }}
+                  style={styles.avatarImg}
                 />
               </View>
               <Text style={[styles.userName, isFocused && styles.userNameFocused]}>{user.name}</Text>
