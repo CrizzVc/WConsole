@@ -90,10 +90,11 @@ export default function ConsoleHome() {
             id: g.id,
             title: g.title,
             time: 'Custom App',
-            image: g.imageBase64 ? { uri: g.imageBase64 } : (g.image ? { uri: `local-file:///${g.image.replace(/\\/g, '/')}` } : null),
-            logo: g.logoBase64 ? { uri: g.logoBase64 } : (g.logo ? { uri: `local-file:///${g.logo.replace(/\\/g, '/')}` } : null),
-            backgroundImage: g.backgroundImageBase64 ? { uri: g.backgroundImageBase64 } : (g.backgroundImage ? { uri: `local-file:///${g.backgroundImage.replace(/\\/g, '/')}` } : null),
-            video: g.video ? { uri: `local-file:///${g.video.replace(/\\/g, '/')}` } : null,
+            image: g.imageBase64 ? { uri: g.imageBase64 } : (g.image ? (g.image.startsWith('http') ? { uri: g.image } : { uri: `local-file:///${g.image.replace(/\\/g, '/')}` }) : null),
+            logo: g.logoBase64 ? { uri: g.logoBase64 } : (g.logo ? (g.logo.startsWith('http') ? { uri: g.logo } : { uri: `local-file:///${g.logo.replace(/\\/g, '/')}` }) : null),
+            backgroundImage: g.backgroundImageBase64 ? { uri: g.backgroundImageBase64 } : (g.backgroundImage ? (g.backgroundImage.startsWith('http') ? { uri: g.backgroundImage } : { uri: `local-file:///${g.backgroundImage.replace(/\\/g, '/')}` }) : null),
+            video: g.video ? (g.video.startsWith('http') ? { uri: g.video } : { uri: `local-file:///${g.video.replace(/\\/g, '/')}` }) : null,
+
             path: g.path,
             description: g.description,
             rating: g.rating
@@ -105,9 +106,10 @@ export default function ConsoleHome() {
             id: m.id,
             title: m.title,
             time: 'Custom Media',
-            image: m.imageBase64 ? { uri: m.imageBase64 } : (m.image ? { uri: `local-file://${m.image}` } : null),
-            backgroundImage: m.backgroundImageBase64 ? { uri: m.backgroundImageBase64 } : (m.backgroundImage ? { uri: `local-file://${m.backgroundImage}` } : null),
-            video: m.video ? { uri: `local-file://${m.video}` } : null,
+            image: m.imageBase64 ? { uri: m.imageBase64 } : (m.image ? (m.image.startsWith('http') ? { uri: m.image } : { uri: `local-file://${m.image}` }) : null),
+            backgroundImage: m.backgroundImageBase64 ? { uri: m.backgroundImageBase64 } : (m.backgroundImage ? (m.backgroundImage.startsWith('http') ? { uri: m.backgroundImage } : { uri: `local-file://${m.backgroundImage}` }) : null),
+            video: m.video ? (m.video.startsWith('http') ? { uri: m.video } : { uri: `local-file://${m.video}` }) : null,
+
             path: m.path,
             description: m.description,
             rating: m.rating

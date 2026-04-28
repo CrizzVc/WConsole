@@ -12,6 +12,10 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 const dbPath = path.join(app.getPath('userData'), 'database.json');
+const IGDB_CLIENT_ID = 'cedukeor213t2yrqswcerzpldefp43'; // REEMPLAZAR
+const IGDB_CLIENT_SECRET = 'q9hm9iq6ahlaccv3osl19a7y71qd3t'; // REEMPLAZAR
+let igdbAccessToken = null;
+
 
 // Inicializar la base de datos local
 function initDB() {
@@ -50,7 +54,7 @@ app.whenReady().then(() => {
   protocol.registerFileProtocol('local-file', (request, callback) => {
     try {
       let filePath = decodeURIComponent(request.url.replace('local-file://', ''));
-      
+
       // En Windows, las rutas pueden venir como /C:/ o C/ o C:/
       if (process.platform === 'win32') {
         if (filePath.startsWith('/')) filePath = filePath.slice(1);
@@ -58,7 +62,7 @@ app.whenReady().then(() => {
           filePath = filePath[0] + ':' + filePath.slice(1);
         }
       }
-      
+
       callback({ path: path.normalize(filePath) });
     } catch (err) {
       console.error('Protocol error:', err);
@@ -78,7 +82,7 @@ app.whenReady().then(() => {
             const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
             const base64Data = fs.readFileSync(item.image, 'base64');
             item.imageBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch(e) { console.error('Error leyendo imagen', e); }
+          } catch (e) { console.error('Error leyendo imagen', e); }
         }
         // Fondo
         if (item.backgroundImage && fs.existsSync(item.backgroundImage)) {
@@ -87,7 +91,7 @@ app.whenReady().then(() => {
             const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
             const base64Data = fs.readFileSync(item.backgroundImage, 'base64');
             item.backgroundImageBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch(e) { console.error('Error leyendo fondo', e); }
+          } catch (e) { console.error('Error leyendo fondo', e); }
         }
         // Logo
         if (item.logo && fs.existsSync(item.logo)) {
@@ -96,7 +100,7 @@ app.whenReady().then(() => {
             const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
             const base64Data = fs.readFileSync(item.logo, 'base64');
             item.logoBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch(e) { console.error('Error leyendo logo', e); }
+          } catch (e) { console.error('Error leyendo logo', e); }
         }
         return item;
       });
@@ -111,7 +115,7 @@ app.whenReady().then(() => {
   ipcMain.handle('save-app', (event, appData) => {
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
     appData.id = Date.now().toString();
-    
+
     if (appData.type === 'game') {
       data.games = data.games || [];
       data.games.push(appData);
@@ -119,7 +123,7 @@ app.whenReady().then(() => {
       data.media = data.media || [];
       data.media.push(appData);
     }
-    
+
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
     return data;
   });
@@ -127,7 +131,7 @@ app.whenReady().then(() => {
   // IPC: Actualizar una aplicación existente
   ipcMain.handle('update-app', (event, updatedApp) => {
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-    
+
     const updateInList = (list) => {
       const index = list.findIndex(item => item.id === updatedApp.id);
       if (index !== -1) {
@@ -144,7 +148,7 @@ app.whenReady().then(() => {
     if (!updateInList(data.games || []) && !updateInList(data.media || [])) {
       return { success: false, error: 'App not found' };
     }
-    
+
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
     return { success: true, data };
   });
@@ -152,7 +156,7 @@ app.whenReady().then(() => {
   // IPC: Ejecutar un programa externo
   ipcMain.handle('launch-app', (event, executablePath) => {
     if (!executablePath) return;
-    
+
     // Ejecutar la ruta proporcionada
     exec(`"${executablePath}"`, (error, stdout, stderr) => {
       if (error) {
@@ -197,7 +201,55 @@ app.whenReady().then(() => {
     return null;
   });
 
+  // IGDB: Obtener token de acceso
+  async function getIGDBAccessToken() {
+    if (igdbAccessToken) return igdbAccessToken;
+
+    try {
+      const response = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${IGDB_CLIENT_ID}&client_secret=${IGDB_CLIENT_SECRET}&grant_type=client_credentials`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+      igdbAccessToken = data.access_token;
+      return igdbAccessToken;
+    } catch (error) {
+      console.error('Error obteniendo token de IGDB:', error);
+      return null;
+    }
+  }
+
+  // IPC: Buscar datos de un juego en IGDB
+  ipcMain.handle('fetch-game-data', async (event, title) => {
+    const token = await getIGDBAccessToken();
+    if (!token) return { success: false, error: 'No se pudo obtener el token de IGDB' };
+
+    try {
+      const response = await fetch('https://api.igdb.com/v4/games', {
+        method: 'POST',
+        headers: {
+          'Client-ID': IGDB_CLIENT_ID,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'text/plain'
+        },
+        body: `fields name, rating, summary, aggregated_rating, cover.url, screenshots.url, artworks.url; search "${title}"; limit 1;`
+
+      });
+
+      const data = await response.json();
+      console.log('IGDB Data:', JSON.stringify(data, null, 2));
+      if (data && data.length > 0) {
+        return { success: true, data: data[0] };
+      }
+
+      return { success: false, error: 'No se encontró el juego' };
+    } catch (error) {
+      console.error('Error buscando datos en IGDB:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // IPC: Cerrar la aplicación
+
   ipcMain.handle('close-app', () => {
     app.quit();
   });

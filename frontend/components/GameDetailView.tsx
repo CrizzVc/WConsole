@@ -14,6 +14,8 @@ interface GameDetailViewProps {
 const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClose, onLaunch, onRefresh }) => {
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ConsoleItem>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+
 
   useEffect(() => {
     if (item) {
@@ -22,10 +24,11 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         title: item.title,
         description: item.description,
         rating: item.rating,
-        image: item.image?.uri?.startsWith('local-file://') ? item.image.uri.replace('local-file://', '') : undefined,
-        logo: item.logo?.uri?.startsWith('local-file://') ? item.logo.uri.replace('local-file://', '') : undefined,
-        backgroundImage: item.backgroundImage?.uri?.startsWith('local-file://') ? item.backgroundImage.uri.replace('local-file://', '') : undefined,
-        video: item.video?.uri?.startsWith('local-file://') ? item.video.uri.replace('local-file://', '') : undefined,
+        image: item.image?.uri?.startsWith('local-file://') ? item.image.uri.replace('local-file://', '') : (item.image?.uri?.startsWith('http') ? item.image.uri : undefined),
+        logo: item.logo?.uri?.startsWith('local-file://') ? item.logo.uri.replace('local-file://', '') : (item.logo?.uri?.startsWith('http') ? item.logo.uri : undefined),
+        backgroundImage: item.backgroundImage?.uri?.startsWith('local-file://') ? item.backgroundImage.uri.replace('local-file://', '') : (item.backgroundImage?.uri?.startsWith('http') ? item.backgroundImage.uri : undefined),
+        video: item.video?.uri?.startsWith('local-file://') ? item.video.uri.replace('local-file://', '') : (item.video?.uri?.startsWith('http') ? item.video.uri : undefined),
+
       };
 
       setEditData(initialData);
@@ -65,15 +68,62 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
     }
   };
 
+  const handleSyncIGDB = async () => {
+    if ((window as any).electronAPI && editData.title) {
+      setIsSyncing(true);
+      const result = await (window as any).electronAPI.fetchGameData(editData.title);
+      setIsSyncing(false);
+      
+      if (result.success) {
+        const game = result.data;
+        const newEditData: any = {
+          ...editData,
+          rating: game.rating ? game.rating / 20 : (game.aggregated_rating ? game.aggregated_rating / 20 : 5.0),
+          description: game.summary || editData.description
+        };
+
+        // Si IGDB devuelve una carátula, la usamos (convertimos a alta resolución)
+        if (game.cover && game.cover.url) {
+          const coverUrl = 'https:' + game.cover.url.replace('t_thumb', 't_cover_big');
+          newEditData.image = coverUrl;
+        }
+
+        // Si IGDB devuelve capturas o arte, usamos la primera como fondo (1080p)
+        if (game.screenshots && game.screenshots.length > 0) {
+          newEditData.backgroundImage = 'https:' + game.screenshots[0].url.replace('t_thumb', 't_1080p');
+        } else if (game.artworks && game.artworks.length > 0) {
+          newEditData.backgroundImage = 'https:' + game.artworks[0].url.replace('t_thumb', 't_1080p');
+        }
+
+        setEditData(newEditData);
+
+      } else {
+
+        alert('No se encontró información en IGDB. Revisa el nombre del juego.');
+      }
+    }
+  };
+
+
   return (
     <Modal visible={isVisible} transparent={false} animationType="fade" onRequestClose={onClose}>
       <View style={styles.detailContainer}>
         {/* BACKGROUND: Prefer custom backgroundImage, then fallback to image, then black */}
-        {item.backgroundImage ? (
-          <Image source={item.backgroundImage} style={styles.detailBg} />
+        {/* BACKGROUND: Prefer editData for live preview, then fallback to item, then image */}
+        {(editData.backgroundImage || item.backgroundImage) ? (
+          <Image 
+            source={editData.backgroundImage ? (editData.backgroundImage.startsWith('http') ? { uri: editData.backgroundImage } : { uri: `local-file:///${editData.backgroundImage}` }) : item.backgroundImage} 
+            style={styles.detailBg} 
+          />
         ) : (
-          item.image && <Image source={item.image} style={styles.detailBg} />
+          (editData.image || item.image) && (
+            <Image 
+              source={editData.image ? (editData.image.startsWith('http') ? { uri: editData.image } : { uri: `local-file:///${editData.image}` }) : item.image} 
+              style={styles.detailBg} 
+            />
+          )
         )}
+
 
         <View style={styles.detailOverlay}>
           <TouchableOpacity style={styles.detailBack} onPress={onClose}>
@@ -82,13 +132,20 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
           <View style={styles.detailContent}>
             <View style={styles.detailLeft}>
-              {item.logo ? (
-                <Image source={item.logo} style={styles.detailLogo} />
+              {(editData.logo || item.logo) ? (
+                <Image 
+                  source={editData.logo ? (editData.logo.startsWith('http') ? { uri: editData.logo } : { uri: `local-file:///${editData.logo}` }) : item.logo} 
+                  style={styles.detailLogo} 
+                />
               ) : (
-                item.image && (
-                  <Image source={item.image} style={styles.detailCover} />
+                (editData.image || item.image) && (
+                  <Image 
+                    source={editData.image ? (editData.image.startsWith('http') ? { uri: editData.image } : { uri: `local-file:///${editData.image}` }) : item.image} 
+                    style={styles.detailCover} 
+                  />
                 )
               )}
+
             </View>
 
             <View style={styles.detailRight}>
@@ -159,6 +216,16 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Editar Aplicación</Text>
+
+            <TouchableOpacity 
+              style={[styles.syncBtn, isSyncing && { opacity: 0.7 }]} 
+              onPress={handleSyncIGDB}
+              disabled={isSyncing}
+            >
+              <Ionicons name="sync" size={18} color="#000" />
+              <Text style={styles.syncBtnText}>{isSyncing ? 'Sincronizando...' : 'Sincronizar con IGDB (Rating/Resumen)'}</Text>
+            </TouchableOpacity>
+
 
             <ScrollView style={{ maxHeight: 400 }}>
               <Text style={styles.label}>Título</Text>
@@ -246,6 +313,9 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#FFF', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 14, backgroundColor: '#00FFFF', borderRadius: 8, marginLeft: 8, alignItems: 'center' },
   saveBtnText: { color: '#000', fontWeight: 'bold' },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD700', padding: 12, borderRadius: 8, marginBottom: 20 },
+  syncBtnText: { color: '#000', fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
 });
+
 
 export default GameDetailView;

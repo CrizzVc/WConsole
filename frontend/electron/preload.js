@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectVideo: () => ipcRenderer.invoke('select-video'),
   updateApp: (appData) => ipcRenderer.invoke('update-app', appData),
   closeApp: () => ipcRenderer.invoke('close-app'),
+  fetchGameData: (title) => ipcRenderer.invoke('fetch-game-data', title),
 });
+
 
