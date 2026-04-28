@@ -1068,6 +1068,31 @@ export default function ConsoleHome() {
                   );
                 }
 
+                if (item.isLastPlayed && !lastPlayedGame) {
+                  return (
+                    <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                      <View style={[...cardContainerStyle, { overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center' }]}>
+                        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                        <MaterialCommunityIcons 
+                          name="history" 
+                          size={Math.round(60 * scale)} 
+                          color={isActive ? "#00FFFF" : "rgba(255,255,255,0.2)"} 
+                        />
+                        <View style={{ position: 'absolute', bottom: 15, width: '100%', alignItems: 'center' }}>
+                          <Text style={{ 
+                            color: isActive ? "#00FFFF" : "rgba(255,255,255,0.4)", 
+                            fontSize: Math.round(10 * scale), 
+                            fontWeight: 'bold',
+                            letterSpacing: 1
+                          }}>
+                            SIN ACTIVIDAD
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }
+
                 return (
                   <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
                     <Image
