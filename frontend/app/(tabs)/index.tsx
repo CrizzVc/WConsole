@@ -80,6 +80,7 @@ export default function ConsoleHome() {
   const [currentTime, setCurrentTime] = useState('');
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [gamepadInfo, setGamepadInfo] = useState({ connected: false, name: '', battery: 0 });
+  const [storageInfo, setStorageInfo] = useState({ percent: 0, freeGB: 0 });
 
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -221,6 +222,15 @@ export default function ConsoleHome() {
   useEffect(() => {
     loadApps();
     fetchGamingNews().then(setNews);
+
+    // Get real storage info if on Electron
+    if (Platform.OS === 'web' && (window as any).electronAPI) {
+      (window as any).electronAPI.getStorageInfo().then((res: any) => {
+        if (res.success) {
+          setStorageInfo({ percent: res.percent, freeGB: res.freeGB });
+        }
+      });
+    }
   }, []);
 
   // Gamepad Support
@@ -477,6 +487,10 @@ export default function ConsoleHome() {
               }
               setSelectedItem(item);
               setDetailVisible(true);
+            }
+          } else if (focusArea === 'widgets_row') {
+            if (focusIndex === 1) { // Screenshots
+              if ((window as any).electronAPI) (window as any).electronAPI.openScreenshots();
             }
           } else if (focusArea === 'header_user') {
             setUserModalVisible(true);
@@ -1049,10 +1063,10 @@ export default function ConsoleHome() {
                 </View>
                 <View style={styles.widgetContent}>
                    <View style={styles.storageBarContainer}>
-                      <View style={[styles.storageBar, { width: '65%' }]} />
+                      <View style={[styles.storageBar, { width: `${storageInfo.percent || 10}%` }]} />
                    </View>
-                   <Text style={styles.widgetMainText}>65% LLENO</Text>
-                   <Text style={styles.widgetSubText}>234 GB DISPONIBLES</Text>
+                   <Text style={styles.widgetMainText}>{storageInfo.percent || '---'}% LLENO</Text>
+                   <Text style={styles.widgetSubText}>{storageInfo.freeGB || '---'} GB DISPONIBLES</Text>
                 </View>
               </BlurView>
             </TouchableOpacity>

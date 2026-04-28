@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -359,6 +359,45 @@ app.whenReady().then(() => {
 
   ipcMain.handle('close-app', () => {
     app.quit();
+  });
+
+  // IPC: Obtener info de almacenamiento (Windows)
+  ipcMain.handle('get-storage-info', async () => {
+    return new Promise((resolve) => {
+      if (process.platform !== 'win32') {
+        resolve({ success: false, error: 'Plataforma no soportada' });
+        return;
+      }
+      exec('powershell "Get-CimInstance Win32_LogicalDisk | Where-Object DeviceID -eq \'C:\' | Select-Object Size, FreeSpace"', (error, stdout) => {
+        if (error) {
+          resolve({ success: false, error: error.message });
+          return;
+        }
+        const lines = stdout.trim().split('\n').filter(l => l.trim() !== '' && !l.includes('---') && !l.includes('Size'));
+        if (lines.length > 0) {
+          const parts = lines[0].trim().split(/\s+/);
+          const size = parseInt(parts[0]);
+          const free = parseInt(parts[1]);
+          const used = size - free;
+          const percent = Math.round((used / size) * 100);
+          const freeGB = Math.round(free / (1024 * 1024 * 1024));
+          resolve({ success: true, percent, freeGB });
+        } else {
+          resolve({ success: false, error: 'No se pudo leer la info del disco' });
+        }
+      });
+    });
+  });
+
+  // IPC: Abrir carpeta de capturas
+  ipcMain.handle('open-screenshots', async () => {
+    const picturesPath = app.getPath('pictures');
+    const screenshotsPath = path.join(picturesPath, 'Screenshots');
+    if (!fs.existsSync(screenshotsPath)) {
+      fs.mkdirSync(screenshotsPath, { recursive: true });
+    }
+    shell.openPath(screenshotsPath);
+    return { success: true };
   });
 
   createWindow();
