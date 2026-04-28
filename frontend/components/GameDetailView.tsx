@@ -7,7 +7,7 @@ interface GameDetailViewProps {
   isVisible: boolean;
   item: ConsoleItem | null;
   onClose: () => void;
-  onLaunch?: (path: string) => void;
+  onLaunch?: (id: string, path: string) => void;
   onRefresh?: () => void;
 }
 
@@ -53,8 +53,8 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
           if (focusIndex === 0) {
             // Launch app
             if (item?.path) {
-              if (onLaunch) onLaunch(item.path);
-              else if ((window as any).electronAPI) (window as any).electronAPI.launchApp(item.path);
+              if (onLaunch) onLaunch(item.id, item.path);
+              else if ((window as any).electronAPI) (window as any).electronAPI.launchApp(item.id, item.path);
             }
           } else if (focusIndex === 1) {
             setEditModalVisible(true);
@@ -237,13 +237,13 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                   ]}
                   onPress={() => {
                     setFocusIndex(0);
-                    if (item.path) {
-                      if (onLaunch) {
-                        onLaunch(item.path);
-                      } else if (Platform.OS === 'web' && (window as any).electronAPI) {
-                        (window as any).electronAPI.launchApp(item.path);
+                      if (item.path) {
+                        if (onLaunch) {
+                          onLaunch(item.id, item.path);
+                        } else if (Platform.OS === 'web' && (window as any).electronAPI) {
+                          (window as any).electronAPI.launchApp(item.id, item.path);
+                        }
                       }
-                    }
                   }}
                 >
                   <Ionicons name="play" size={18} color="#FFF" />

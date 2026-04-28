@@ -27,7 +27,7 @@ export interface ConsoleItem {
 
 const DATA_GAMES: ConsoleItem[] = [
   { id: '1', title: 'Home', time: 'WConsole - Home', image: require('@/assets/images/Home.jpeg'), description: 'Bienvenido a tu consola personal. Accede a tus juegos y aplicaciones favoritas con una experiencia premium.', rating: 5.0, backgroundImage: require('@/assets/images/Home.jpeg') },
-  { id: '2', title: 'Pokémon Legends: Arceus', time: 'TODAY 2.3 H - TOTAL 17.9 H', image: require('@/assets/images/game_adventure.png'), description: 'Explora la antigua región de Hisui en este innovador juego de acción-RPG. Captura, estudia y lucha con Pokémon como nunca antes en la historia de la saga.', rating: 4.9 },
+  { id: 'last_played', title: 'Último Jugado', time: 'No ejecutado aún', image: require('@/assets/images/Home.jpeg'), isLastPlayed: true },
   { id: '3', title: 'Favorite Games', time: 'Folder - 2 Items', isFolder: true },
   { id: '4', title: 'Media Apps', time: '', isGrid: true },
 ];
@@ -63,6 +63,7 @@ export default function ConsoleHome() {
   // States for dynamic data and clock
   const [games, setGames] = useState<ConsoleItem[]>(DATA_GAMES);
   const [media, setMedia] = useState<ConsoleItem[]>(DATA_MEDIA);
+  const [lastPlayedGame, setLastPlayedGame] = useState<ConsoleItem | null>(null);
   const [currentTime, setCurrentTime] = useState('');
 
   // States for Add App Modal
@@ -116,6 +117,8 @@ export default function ConsoleHome() {
   const loadApps = () => {
     if (Platform.OS === 'web' && (window as any).electronAPI) {
       (window as any).electronAPI.getApps().then((data: any) => {
+        let allFormatted: ConsoleItem[] = [];
+        
         if (data.games) {
           const formattedGames = data.games.map((g: any) => ({
             id: g.id,
@@ -125,13 +128,14 @@ export default function ConsoleHome() {
             logo: g.logoBase64 ? { uri: g.logoBase64 } : (g.logo ? (g.logo.startsWith('http') ? { uri: g.logo } : { uri: `local-file:///${g.logo.replace(/\\/g, '/')}` }) : null),
             backgroundImage: g.backgroundImageBase64 ? { uri: g.backgroundImageBase64 } : (g.backgroundImage ? (g.backgroundImage.startsWith('http') ? { uri: g.backgroundImage } : { uri: `local-file:///${g.backgroundImage.replace(/\\/g, '/')}` }) : null),
             video: g.video ? (g.video.startsWith('http') ? { uri: g.video } : { uri: `local-file:///${g.video.replace(/\\/g, '/')}` }) : null,
-
             path: g.path,
             description: g.description,
             rating: g.rating,
-            isFavorite: g.isFavorite
+            isFavorite: g.isFavorite,
+            lastPlayed: g.lastPlayed
           }));
           setGames([...DATA_GAMES, ...formattedGames]);
+          allFormatted = [...allFormatted, ...formattedGames];
         }
         if (data.media) {
           const formattedMedia = data.media.map((m: any) => ({
@@ -141,13 +145,20 @@ export default function ConsoleHome() {
             image: m.imageBase64 ? { uri: m.imageBase64 } : (m.image ? (m.image.startsWith('http') ? { uri: m.image } : { uri: `local-file://${m.image}` }) : null),
             backgroundImage: m.backgroundImageBase64 ? { uri: m.backgroundImageBase64 } : (m.backgroundImage ? (m.backgroundImage.startsWith('http') ? { uri: m.backgroundImage } : { uri: `local-file://${m.backgroundImage}` }) : null),
             video: m.video ? (m.video.startsWith('http') ? { uri: m.video } : { uri: `local-file://${m.video}` }) : null,
-
             path: m.path,
             description: m.description,
             rating: m.rating,
-            isFavorite: m.isFavorite
+            isFavorite: m.isFavorite,
+            lastPlayed: m.lastPlayed
           }));
           setMedia([...DATA_MEDIA, ...formattedMedia]);
+          allFormatted = [...allFormatted, ...formattedMedia];
+        }
+
+        // Identificar el último juego jugado
+        const latest = allFormatted.filter(i => i.lastPlayed).sort((a: any, b: any) => b.lastPlayed - a.lastPlayed)[0];
+        if (latest) {
+          setLastPlayedGame(latest);
         }
       }).catch(console.error);
     }
@@ -182,8 +193,6 @@ export default function ConsoleHome() {
         if (isDetailVisible) {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
             setDetailVisible(false);
-          } else if (e.key === 'Enter' && selectedItem?.path && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(selectedItem.path);
           }
           return;
         }
@@ -342,6 +351,15 @@ export default function ConsoleHome() {
         setFavoritesVisible(true);
         return;
       }
+      if (item.isLastPlayed) {
+        if (lastPlayedGame) {
+          setSelectedItem(lastPlayedGame);
+          setDetailVisible(true);
+        } else {
+          alert('Aún no has jugado a ningún juego.');
+        }
+        return;
+      }
       if (!item.isGrid) {
         setSelectedItem(item);
         setDetailVisible(true);
@@ -406,7 +424,7 @@ export default function ConsoleHome() {
 
   const currentBg = (activeTab === 'Games' && activeIndex === 0 && homeBackground)
     ? homeBackground
-    : currentData[activeIndex]?.backgroundImage;
+    : (currentData[activeIndex]?.isLastPlayed ? lastPlayedGame?.backgroundImage : currentData[activeIndex]?.backgroundImage);
 
   // Trigger crossfade when currentBg changes
   useEffect(() => {
@@ -512,7 +530,9 @@ export default function ConsoleHome() {
       <View style={styles.mainContent}>
         <View style={styles.activeTitleContainer}>
           <View style={styles.cartridgeIcon} />
-          <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>{currentData[activeIndex]?.title}</Text>
+          <Text style={[styles.activeTitle, { fontSize: Math.round(22 * scale) }]}>
+            {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Último: ${lastPlayedGame.title}` : 'Último Jugado') : currentData[activeIndex]?.title}
+          </Text>
         </View>
 
         <View style={[styles.carouselWrapper, { height: CARD_SIZE * 1.2 }]}>
@@ -663,7 +683,7 @@ export default function ConsoleHome() {
               return (
                 <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
                   <Image
-                    source={item.image}
+                    source={item.isLastPlayed ? (lastPlayedGame?.image ?? item.image) : item.image}
                     style={[styles.cardImage, cardContainerStyle]}
                   />
                 </TouchableOpacity>
@@ -673,7 +693,9 @@ export default function ConsoleHome() {
         </View>
 
         <View style={styles.activeSubtitleContainer}>
-          <Text style={styles.activeSubtitle}>{currentData[activeIndex]?.time}</Text>
+          <Text style={styles.activeSubtitle}>
+            {currentData[activeIndex]?.isLastPlayed ? (lastPlayedGame ? `Jugado recientemente` : 'Ningún juego ejecutado') : currentData[activeIndex]?.time}
+          </Text>
         </View>
       </View>
 
@@ -748,9 +770,9 @@ export default function ConsoleHome() {
         item={selectedItem}
         onClose={() => setDetailVisible(false)}
         onRefresh={loadApps}
-        onLaunch={(path) => {
+        onLaunch={(id, path) => {
           if (Platform.OS === 'web' && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(path);
+            (window as any).electronAPI.launchApp(id, path).then(loadApps);
           }
         }}
       />
@@ -759,9 +781,9 @@ export default function ConsoleHome() {
         isVisible={isFavoritesVisible}
         favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
-        onLaunch={(path) => {
-          if (path && Platform.OS === 'web' && (window as any).electronAPI) {
-            (window as any).electronAPI.launchApp(path);
+        onLaunch={(item) => {
+          if (item.path && Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.launchApp(item.id, item.path).then(loadApps);
           }
         }}
       />

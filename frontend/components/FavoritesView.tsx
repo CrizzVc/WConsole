@@ -9,7 +9,7 @@ interface FavoritesViewProps {
   isVisible: boolean;
   favorites: ConsoleItem[];
   onClose: () => void;
-  onLaunch: (path: string) => void;
+  onLaunch: (item: ConsoleItem) => void;
 }
 
 const FavoriteItem: React.FC<{
@@ -113,8 +113,8 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
             setActiveIndex(activeIndex - 1);
           }
         } else if (e.key === 'Enter') {
-          if (favorites[activeIndex]?.path) {
-            onLaunch(favorites[activeIndex].path);
+          if (favorites[activeIndex]) {
+            onLaunch(favorites[activeIndex]);
           }
         } else if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
           onClose();
@@ -208,7 +208,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ isVisible, favorites, onC
                     key={item.id}
                     item={item}
                     isActive={index === activeIndex}
-                    onPress={() => (index === activeIndex) ? onLaunch(item.path || '') : setActiveIndex(index)}
+                    onPress={() => (index === activeIndex) ? onLaunch(item) : setActiveIndex(index)}
                     HERO_WIDTH={HERO_WIDTH}
                     HERO_HEIGHT={HERO_HEIGHT}
                 />

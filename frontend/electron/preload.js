@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   getApps: () => ipcRenderer.invoke('get-apps'),
   saveApp: (appData) => ipcRenderer.invoke('save-app', appData),
-  launchApp: (path) => ipcRenderer.invoke('launch-app', path),
+  launchApp: (id, path) => ipcRenderer.invoke('launch-app', id, path),
   selectFile: () => ipcRenderer.invoke('select-file'),
   selectImage: () => ipcRenderer.invoke('select-image'),
   selectVideo: () => ipcRenderer.invoke('select-video'),

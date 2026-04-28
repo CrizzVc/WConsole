@@ -156,8 +156,30 @@ app.whenReady().then(() => {
   });
 
   // IPC: Ejecutar un programa externo
-  ipcMain.handle('launch-app', (event, executablePath) => {
+  ipcMain.handle('launch-app', (event, id, executablePath) => {
     if (!executablePath) return;
+
+    // Actualizar timestamp de último juego en la DB si el id existe
+    if (id && id !== 'last_played') {
+      console.log('Actualizando lastPlayed para:', id);
+      const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+      const updateInList = (list) => {
+        const item = list.find(i => i.id === id);
+        if (item) {
+          item.lastPlayed = Date.now();
+          console.log('Timestamp actualizado para:', item.title);
+          return true;
+        }
+        return false;
+      };
+      
+      if (updateInList(data.games || []) || updateInList(data.media || [])) {
+        fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+        console.log('DB guardada con éxito');
+      } else {
+        console.log('ID no encontrado en la base de datos:', id);
+      }
+    }
 
     // Ejecutar la ruta proporcionada
     exec(`"${executablePath}"`, (error, stdout, stderr) => {
@@ -165,6 +187,8 @@ app.whenReady().then(() => {
         console.error('Error al ejecutar la aplicación:', error);
       }
     });
+
+    return { success: true };
   });
 
   // IPC: Abrir diálogo para seleccionar ejecutable
