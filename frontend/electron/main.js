@@ -22,7 +22,15 @@ let igdbAccessToken = null;
 // Inicializar la base de datos local
 function initDB() {
   if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({ games: [], media: [] }, null, 2));
+    fs.writeFileSync(dbPath, JSON.stringify({ games: [], media: [], users: [] }, null, 2));
+  } else {
+    // Asegurar que las claves básicas existan
+    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    let modified = false;
+    if (!data.games) { data.games = []; modified = true; }
+    if (!data.media) { data.media = []; modified = true; }
+    if (!data.users) { data.users = []; modified = true; }
+    if (modified) fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
   }
 }
 
@@ -48,6 +56,46 @@ function createWindow() {
   }
 }
 
+// Función para inyectar Base64 de imágenes locales
+function injectMediaToBase64(item) {
+  const newItem = { ...item };
+  // Portada / Avatar
+  const imageField = newItem.avatar ? 'avatar' : 'image';
+  const targetPath = newItem[imageField];
+
+  if (targetPath && fs.existsSync(targetPath)) {
+    try {
+      const ext = path.extname(targetPath).substring(1).toLowerCase();
+      const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
+      const base64Data = fs.readFileSync(targetPath, 'base64');
+      if (newItem.avatar) {
+        newItem.avatarBase64 = `data:image/${mimeType};base64,${base64Data}`;
+      } else {
+        newItem.imageBase64 = `data:image/${mimeType};base64,${base64Data}`;
+      }
+    } catch (e) { console.error('Error leyendo imagen', e); }
+  }
+  // Fondo
+  if (newItem.backgroundImage && fs.existsSync(newItem.backgroundImage)) {
+    try {
+      const ext = path.extname(newItem.backgroundImage).substring(1).toLowerCase();
+      const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
+      const base64Data = fs.readFileSync(newItem.backgroundImage, 'base64');
+      newItem.backgroundImageBase64 = `data:image/${mimeType};base64,${base64Data}`;
+    } catch (e) { console.error('Error leyendo fondo', e); }
+  }
+  // Logo
+  if (newItem.logo && fs.existsSync(newItem.logo)) {
+    try {
+      const ext = path.extname(newItem.logo).substring(1).toLowerCase();
+      const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
+      const base64Data = fs.readFileSync(newItem.logo, 'base64');
+      newItem.logoBase64 = `data:image/${mimeType};base64,${base64Data}`;
+    } catch (e) { console.error('Error leyendo logo', e); }
+  }
+  return newItem;
+}
+
 app.whenReady().then(() => {
   initDB();
 
@@ -71,46 +119,17 @@ app.whenReady().then(() => {
     }
   });
 
-  // IPC: Obtener todas las aplicaciones
+  // IPC: Obtener todas las aplicaciones y usuarios
   ipcMain.handle('get-apps', () => {
     const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-
-    const injectMedia = (items) => {
-      return items.map(item => {
-        // Portada
-        if (item.image && fs.existsSync(item.image)) {
-          try {
-            const ext = path.extname(item.image).substring(1).toLowerCase();
-            const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
-            const base64Data = fs.readFileSync(item.image, 'base64');
-            item.imageBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch (e) { console.error('Error leyendo imagen', e); }
-        }
-        // Fondo
-        if (item.backgroundImage && fs.existsSync(item.backgroundImage)) {
-          try {
-            const ext = path.extname(item.backgroundImage).substring(1).toLowerCase();
-            const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
-            const base64Data = fs.readFileSync(item.backgroundImage, 'base64');
-            item.backgroundImageBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch (e) { console.error('Error leyendo fondo', e); }
-        }
-        // Logo
-        if (item.logo && fs.existsSync(item.logo)) {
-          try {
-            const ext = path.extname(item.logo).substring(1).toLowerCase();
-            const mimeType = ext === 'jpg' ? 'jpeg' : (ext || 'png');
-            const base64Data = fs.readFileSync(item.logo, 'base64');
-            item.logoBase64 = `data:image/${mimeType};base64,${base64Data}`;
-          } catch (e) { console.error('Error leyendo logo', e); }
-        }
-        return item;
-      });
-    };
-
-    data.games = injectMedia(data.games || []);
-    data.media = injectMedia(data.media || []);
+    data.games = (data.games || []).map(injectMediaToBase64);
+    data.media = (data.media || []).map(injectMediaToBase64);
     return data;
+  });
+
+  ipcMain.handle('get-users', () => {
+    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    return (data.users || []).map(injectMediaToBase64);
   });
 
   // IPC: Guardar una nueva aplicación
@@ -128,6 +147,14 @@ app.whenReady().then(() => {
 
     fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
     return data;
+  });
+
+  // IPC: Guardar lista de usuarios
+  ipcMain.handle('save-users', (event, users) => {
+    const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    data.users = users;
+    fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
+    return { success: true };
   });
 
   // IPC: Actualizar una aplicación existente

@@ -36,16 +36,42 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
 
   // Cargar usuarios al inicio
   useEffect(() => {
-    const saved = localStorage.getItem('console_users');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setUsers(parsed);
-      if (parsed.length > 0) setHoveredId(parsed[0].id);
-    } else {
-      localStorage.setItem('console_users', JSON.stringify(DEFAULT_USERS));
-      setUsers(DEFAULT_USERS);
-      setHoveredId(DEFAULT_USERS[0].id);
-    }
+    const loadUsers = async () => {
+      // 1. Intentar cargar desde Electron DB
+      if (Platform.OS === 'web' && (window as any).electronAPI) {
+        try {
+          const dbUsers = await (window as any).electronAPI.getUsers();
+          if (dbUsers && dbUsers.length > 0) {
+            setUsers(dbUsers);
+            localStorage.setItem('console_users', JSON.stringify(dbUsers)); // Sync localstorage
+            setHoveredId(dbUsers[0].id);
+            return;
+          }
+        } catch (err) {
+          console.error('Error loading users from DB:', err);
+        }
+      }
+
+      // 2. Fallback a LocalStorage
+      const saved = localStorage.getItem('console_users');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUsers(parsed);
+        if (parsed.length > 0) setHoveredId(parsed[0].id);
+      } else {
+        // 3. Usuarios por defecto si no hay nada
+        localStorage.setItem('console_users', JSON.stringify(DEFAULT_USERS));
+        setUsers(DEFAULT_USERS);
+        setHoveredId(DEFAULT_USERS[0].id);
+        
+        // Guardar por defecto en DB también
+        if (Platform.OS === 'web' && (window as any).electronAPI) {
+          (window as any).electronAPI.saveUsers(DEFAULT_USERS);
+        }
+      }
+    };
+
+    loadUsers();
   }, []);
 
   // Background pulse animation for fallback
@@ -100,6 +126,9 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
           const newList = [...users, newUser];
           setUsers(newList);
           localStorage.setItem('console_users', JSON.stringify(newList));
+          if (Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.saveUsers(newList);
+          }
           setHoveredId(newUser.id);
         } else {
           const user = users.find(u => u.id === hoveredId);
@@ -195,7 +224,10 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
                 isFocused && styles.cardFocused,
                 isFocused && { borderColor: '#FFF', borderWidth: 3 }
               ]}>
-                <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
+                <Image 
+                  source={{ uri: (user as any).avatarBase64 || user.avatar }} 
+                  style={styles.avatarImg} 
+                />
               </View>
               <Text style={[styles.userName, isFocused && styles.userNameFocused]}>{user.name}</Text>
               {isFocused && (

@@ -25,17 +25,24 @@ export default function RootLayout() {
     );
   }
 
-  const updateUser = (updates: Partial<UserProfile>) => {
+  const updateUser = async (updates: Partial<UserProfile>) => {
     if (activeUser) {
       const newUser = { ...activeUser, ...updates };
       setActiveUser(newUser);
 
-      // Persistir en el listado global de usuarios
+      // Persistir en el listado global de usuarios (Electron DB y LocalStorage fallback)
       const savedUsers = localStorage.getItem('console_users');
       if (savedUsers) {
         const usersList: UserProfile[] = JSON.parse(savedUsers);
         const updatedList = usersList.map(u => u.id === newUser.id ? newUser : u);
+        
+        // Guardar en LocalStorage
         localStorage.setItem('console_users', JSON.stringify(updatedList));
+        
+        // Guardar en Electron DB
+        if ((window as any).electronAPI) {
+          await (window as any).electronAPI.saveUsers(updatedList);
+        }
       }
     }
   };

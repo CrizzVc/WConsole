@@ -214,7 +214,7 @@ export default function ConsoleHome() {
           e.preventDefault();
         }
 
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable || e.target.getAttribute('type') === 'text') {
           return;
         }
 
@@ -546,12 +546,18 @@ export default function ConsoleHome() {
             ]}
             activeOpacity={0.75}
           >
-            {activeUser ? (
-              <Image source={{ uri: activeUser.avatar }} style={styles.avatar} />
-            ) : (
+        {activeUser ? (
+          <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.avatar} />
+        ) : (
               <Ionicons name="person" size={22} color="#CCC" />
             )}
           </TouchableOpacity>
+          {activeUser && (
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeText}>Bienvenido,</Text>
+              <Text style={styles.welcomeName}>{activeUser.name}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.headerCenter}>
@@ -956,12 +962,13 @@ export default function ConsoleHome() {
           activeOpacity={1}
           onPress={() => setUserModalVisible(false)}
         >
-          <View style={styles.userModalContent}>
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: '100%', alignItems: 'center' }}>
+            <View style={styles.userModalContent}>
             {/* Header User Profile */}
             <View style={styles.userModalHeader}>
               <TouchableOpacity onPress={handleSelectAvatar} style={styles.modalAvatarContainer}>
                 {activeUser?.avatar ? (
-                  <Image source={{ uri: activeUser.avatar }} style={styles.modalAvatar} />
+                  <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.modalAvatar} />
                 ) : (
                   <Ionicons name="person" size={24} color="#FFF" />
                 )}
@@ -969,8 +976,14 @@ export default function ConsoleHome() {
                   <Ionicons name="camera" size={12} color="#FFF" />
                 </View>
               </TouchableOpacity>
-              <View>
-                <Text style={styles.userModalHeaderName}>{activeUser?.name || 'Invitado'}@WConsole</Text>
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  style={styles.modalUserNameInput}
+                  value={activeUser?.name || ''}
+                  onChangeText={(text) => updateUser({ name: text })}
+                  placeholder="Nombre de usuario"
+                  placeholderTextColor="#A0A0C0"
+                />
                 <Text style={styles.userModalHeaderStatus}>Online</Text>
               </View>
             </View>
@@ -1034,7 +1047,8 @@ export default function ConsoleHome() {
             </View>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </TouchableOpacity>
+    </Modal>
 
 
     </SafeAreaView>
@@ -1135,6 +1149,33 @@ const styles = StyleSheet.create({
   modalAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#FFF' },
   avatarEditBadge: { position: 'absolute', bottom: -2, right: -2, backgroundColor: '#00FFFF', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1E1E2E' },
   userModalHeaderStatus: { color: '#00FF00', fontSize: 10, fontWeight: 'bold' },
+  modalUserNameInput: {
+    color: '#E0E0FF',
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    width: 200,
+  },
+  welcomeContainer: {
+    marginLeft: 5,
+    justifyContent: 'center',
+  },
+  welcomeText: {
+    color: '#888',
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  welcomeName: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 
   // New Focus Styles
   itemFocused: {
