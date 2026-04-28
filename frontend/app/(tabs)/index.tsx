@@ -94,6 +94,7 @@ export default function ConsoleHome() {
   const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
   const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
   const [isFavoritesVisible, setFavoritesVisible] = useState(false);
+  const [isSettingsVisible, setSettingsVisible] = useState(false);
   const [homeBackground, setHomeBackground] = useState<any>(null);
 
   // Background transition states
@@ -332,12 +333,24 @@ export default function ConsoleHome() {
           } else if (e.key === 'ArrowLeft') {
             setModalSelectedIndex((prev) => Math.max(prev - 1, 0));
           } else if (e.key === 'Enter') {
-            if (modalSelectedIndex === 2) { // Cambiar de usuario
+            if (modalSelectedIndex === 0) { // Opciones/Settings
+              setUserModalVisible(false);
+              setSettingsVisible(true);
+            } else if (modalSelectedIndex === 2) { // Cambiar de usuario
               setUserModalVisible(false);
               changeUser();
             } else if (modalSelectedIndex === 3) { // Apagar
               if ((window as any).electronAPI) (window as any).electronAPI.closeApp();
             }
+          }
+          return;
+        }
+
+        // Settings modal controls
+        if (isSettingsVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setSettingsVisible(false);
+            setUserModalVisible(true);
           }
           return;
         }
@@ -1276,6 +1289,67 @@ export default function ConsoleHome() {
           </View>
         </View>
       </Modal>
+      <Modal visible={isSettingsVisible} transparent animationType="slide">
+        <View style={styles.settingsOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.settingsContent}>
+            <Text style={styles.settingsTitle}>Configuración de Perfil</Text>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsLabel}>Foto de Perfil</Text>
+              <TouchableOpacity onPress={handleSelectAvatar} style={[styles.settingsAvatarContainer, { borderColor: activeUser?.color || '#00FFFF' }]}>
+                {activeUser?.avatar ? (
+                  <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.settingsAvatar} />
+                ) : (
+                  <Ionicons name="person" size={48} color="#FFF" />
+                )}
+                <View style={styles.settingsAvatarEditBadge}>
+                  <Ionicons name="camera" size={20} color="#FFF" />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsLabel}>Nombre de Usuario</Text>
+              <TextInput
+                style={styles.settingsInput}
+                value={activeUser?.name || ''}
+                onChangeText={(text) => updateUser({ name: text })}
+                placeholder="Ingresa tu nombre"
+                placeholderTextColor="#666"
+              />
+            </View>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsLabel}>Color de Perfil</Text>
+              <View style={styles.colorPickerContainer}>
+                {['#FF3B30', '#00D4FF', '#FFCC00', '#4CD964', '#AF52DE', '#FF9500'].map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.colorCircle,
+                      { backgroundColor: color },
+                      activeUser?.color === color && styles.colorCircleActive
+                    ]}
+                    onPress={() => updateUser({ color })}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.settingsCloseBtn, { backgroundColor: activeUser?.color || '#00FFFF' }]}
+              onPress={() => {
+                setSettingsVisible(false);
+                setUserModalVisible(true);
+              }}
+            >
+              <Text style={styles.settingsCloseBtnText}>Guardar y Volver</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={isUserModalVisible} transparent animationType="fade">
         <TouchableOpacity
           style={styles.userModalOverlay}
@@ -1286,24 +1360,15 @@ export default function ConsoleHome() {
             <View style={styles.userModalContent}>
               {/* Header User Profile */}
               <View style={styles.userModalHeader}>
-                <TouchableOpacity onPress={handleSelectAvatar} style={styles.modalAvatarContainer}>
+                <View style={styles.modalAvatarContainer}>
                   {activeUser?.avatar ? (
                     <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.modalAvatar} />
                   ) : (
                     <Ionicons name="person" size={24} color="#FFF" />
                   )}
-                  <View style={styles.avatarEditBadge}>
-                    <Ionicons name="camera" size={12} color="#FFF" />
-                  </View>
-                </TouchableOpacity>
+                </View>
                 <View style={{ flex: 1 }}>
-                  <TextInput
-                    style={styles.modalUserNameInput}
-                    value={activeUser?.name || ''}
-                    onChangeText={(text) => updateUser({ name: text })}
-                    placeholder="Nombre de usuario"
-                    placeholderTextColor="#A0A0C0"
-                  />
+                  <Text style={styles.userModalHeaderName}>{activeUser?.name}</Text>
                   <Text style={styles.userModalHeaderStatus}>Online</Text>
                 </View>
               </View>
@@ -1313,9 +1378,13 @@ export default function ConsoleHome() {
                 <TouchableOpacity
                   style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]}
                   activeOpacity={0.8}
-                  onPress={() => setModalSelectedIndex(0)}
+                  onPress={() => {
+                    setModalSelectedIndex(0);
+                    setUserModalVisible(false);
+                    setSettingsVisible(true);
+                  }}
                 >
-                  <Ionicons name="lock-closed-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
+                  <Ionicons name="settings-outline" size={48} color={modalSelectedIndex === 0 ? styles.powerIconActive.color : styles.powerIcon.color} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1744,6 +1813,106 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#00FFFF',
     borderRadius: 3,
+  },
+  // SETTINGS MODAL STYLES
+  settingsOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsContent: {
+    width: 450,
+    backgroundColor: 'rgba(30, 30, 45, 0.95)',
+    borderRadius: 25,
+    padding: 35,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+  },
+  settingsTitle: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  settingsSection: {
+    marginBottom: 25,
+    alignItems: 'center',
+  },
+  settingsLabel: {
+    color: '#AAA',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  settingsAvatarContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#00FFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  settingsAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  settingsAvatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    left: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    height: '30%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsInput: {
+    width: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    color: '#FFF',
+    padding: 15,
+    borderRadius: 12,
+    fontSize: 18,
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  colorPickerContainer: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  colorCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorCircleActive: {
+    borderColor: '#FFF',
+    transform: [{ scale: 1.2 }],
+  },
+  settingsCloseBtn: {
+    backgroundColor: '#00FFFF',
+    padding: 16,
+    borderRadius: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  settingsCloseBtnText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
