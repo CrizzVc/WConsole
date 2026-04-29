@@ -21,6 +21,10 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
   const [editData, setEditData] = useState<Partial<ConsoleItem>>({});
   const [isSyncing, setIsSyncing] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0); // 0: Inicio, 1: Editar, 2: Favorito
+  const [editModalFocusIndex, setEditModalFocusIndex] = useState(0);
+
+  const editTitleRef = React.useRef<TextInput>(null);
+  const editDescRef = React.useRef<TextInput>(null);
 
 
   useEffect(() => {
@@ -42,12 +46,45 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
     }
   }, [item, isVisible]);
 
+  useEffect(() => {
+    if (isEditModalVisible) {
+      setEditModalFocusIndex(0);
+    }
+  }, [isEditModalVisible]);
+
   // Keyboard navigation within Detail View
   useEffect(() => {
-    if (isVisible && !isEditModalVisible && !isLaunching) {
+    if (isVisible && !isLaunching) {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Enter', ' '].includes(e.key)) {
           e.preventDefault();
+        }
+
+        if (isEditModalVisible) {
+          if (e.key === 'ArrowDown') {
+            setEditModalFocusIndex(prev => Math.min(prev + 1, 10));
+          } else if (e.key === 'ArrowUp') {
+            setEditModalFocusIndex(prev => Math.max(prev - 1, 0));
+          } else if (e.key === 'ArrowRight' && editModalFocusIndex >= 8) {
+            setEditModalFocusIndex(prev => Math.min(prev + 1, 10));
+          } else if (e.key === 'ArrowLeft' && editModalFocusIndex >= 9) {
+            setEditModalFocusIndex(prev => Math.max(prev - 1, 8));
+          } else if (e.key === 'Enter') {
+            if (editModalFocusIndex === 0) handleSyncIGDB();
+            else if (editModalFocusIndex === 1) handleSyncSteamGrid();
+            else if (editModalFocusIndex === 2) editTitleRef.current?.focus();
+            else if (editModalFocusIndex === 3) editDescRef.current?.focus();
+            else if (editModalFocusIndex === 4) handleSelectImage('image');
+            else if (editModalFocusIndex === 5) handleSelectImage('logo');
+            else if (editModalFocusIndex === 6) handleSelectImage('backgroundImage');
+            else if (editModalFocusIndex === 7) handleSelectVideo();
+            else if (editModalFocusIndex === 8) handleDeleteApp();
+            else if (editModalFocusIndex === 9) setEditModalVisible(false);
+            else if (editModalFocusIndex === 10) handleSaveEdit();
+          } else if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setEditModalVisible(false);
+          }
+          return;
         }
 
         if (e.key === 'ArrowRight') {
@@ -73,7 +110,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isVisible, isEditModalVisible, focusIndex, item, onLaunch, onClose]);
+  }, [isVisible, isEditModalVisible, focusIndex, editModalFocusIndex, item, onLaunch, onClose]);
 
   if (!item) return null;
 
@@ -362,7 +399,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             <Text style={styles.modalTitle}>Editar Aplicación</Text>
 
             <TouchableOpacity 
-              style={[styles.syncBtn, isSyncing && { opacity: 0.7 }]} 
+              style={[styles.syncBtn, isSyncing && { opacity: 0.7 }, editModalFocusIndex === 0 && styles.buttonFocused]} 
               onPress={handleSyncIGDB}
               disabled={isSyncing}
             >
@@ -371,7 +408,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.syncBtn, { backgroundColor: '#171a21' }, isSyncing && { opacity: 0.7 }]} 
+              style={[styles.syncBtn, { backgroundColor: '#171a21' }, isSyncing && { opacity: 0.7 }, editModalFocusIndex === 1 && styles.buttonFocused]} 
               onPress={handleSyncSteamGrid}
               disabled={isSyncing}
             >
@@ -379,55 +416,76 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               <Text style={[styles.syncBtnText, { color: '#FFF' }]}>{isSyncing ? 'Sincronizando...' : 'Sincronizar con SteamGridDB (Arte)'}</Text>
             </TouchableOpacity>
 
-
-
             <ScrollView style={{ maxHeight: 400 }}>
               <Text style={styles.label}>Título</Text>
               <TextInput
-                style={styles.input}
+                ref={editTitleRef}
+                style={[styles.input, editModalFocusIndex === 2 && styles.inputFocused]}
                 value={editData.title}
                 onChangeText={(text) => setEditData({ ...editData, title: text })}
               />
 
               <Text style={styles.label}>Descripción</Text>
               <TextInput
-                style={[styles.input, { height: 80 }]}
+                ref={editDescRef}
+                style={[styles.input, { height: 80 }, editModalFocusIndex === 3 && styles.inputFocused]}
                 multiline
                 value={editData.description}
                 onChangeText={(text) => setEditData({ ...editData, description: text })}
               />
 
-              <TouchableOpacity style={styles.fileBtn} onPress={() => handleSelectImage('image')}>
+              <TouchableOpacity 
+                style={[styles.fileBtn, editModalFocusIndex === 4 && styles.buttonFocused]} 
+                onPress={() => handleSelectImage('image')}
+              >
                 <Ionicons name="image" size={20} color="#FFF" />
                 <Text style={styles.fileBtnText}>Cambiar Portada</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.fileBtn} onPress={() => handleSelectImage('logo')}>
+              <TouchableOpacity 
+                style={[styles.fileBtn, editModalFocusIndex === 5 && styles.buttonFocused]} 
+                onPress={() => handleSelectImage('logo')}
+              >
                 <Ionicons name="color-palette" size={20} color="#FFF" />
                 <Text style={styles.fileBtnText}>Cambiar Logo (PNG)</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.fileBtn} onPress={() => handleSelectImage('backgroundImage')}>
+              <TouchableOpacity 
+                style={[styles.fileBtn, editModalFocusIndex === 6 && styles.buttonFocused]} 
+                onPress={() => handleSelectImage('backgroundImage')}
+              >
                 <Ionicons name="images" size={20} color="#FFF" />
                 <Text style={styles.fileBtnText}>Cambiar Fondo</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.fileBtn} onPress={handleSelectVideo}>
+              <TouchableOpacity 
+                style={[styles.fileBtn, editModalFocusIndex === 7 && styles.buttonFocused]} 
+                onPress={handleSelectVideo}
+              >
                 <Ionicons name="videocam" size={20} color="#FFF" />
                 <Text style={styles.fileBtnText}>Cambiar Video</Text>
               </TouchableOpacity>
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteApp}>
+              <TouchableOpacity 
+                style={[styles.deleteBtn, editModalFocusIndex === 8 && styles.buttonFocused]} 
+                onPress={handleDeleteApp}
+              >
                 <Ionicons name="trash-outline" size={20} color="#FF2D55" />
               </TouchableOpacity>
               
               <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalVisible(false)}>
+                <TouchableOpacity 
+                  style={[styles.cancelBtn, editModalFocusIndex === 9 && styles.buttonFocused]} 
+                  onPress={() => setEditModalVisible(false)}
+                >
                   <Text style={styles.cancelBtnText}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit}>
+                <TouchableOpacity 
+                  style={[styles.saveBtn, editModalFocusIndex === 10 && styles.buttonFocused]} 
+                  onPress={handleSaveEdit}
+                >
                   <Text style={styles.saveBtnText}>Guardar</Text>
                 </TouchableOpacity>
               </View>
@@ -469,6 +527,11 @@ const styles = StyleSheet.create({
   modalTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   label: { color: '#888', fontSize: 12, marginBottom: 5, marginLeft: 5, textTransform: 'uppercase' },
   input: { backgroundColor: '#0D0D0D', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#333' },
+  inputFocused: {
+    borderColor: '#00FFFF',
+    borderWidth: 2,
+    backgroundColor: '#111',
+  },
   fileBtn: { backgroundColor: '#262626', padding: 15, borderRadius: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   fileBtnText: { color: '#FFF', marginLeft: 10, fontSize: 14 },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },

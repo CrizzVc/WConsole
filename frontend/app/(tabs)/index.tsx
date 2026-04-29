@@ -91,6 +91,15 @@ export default function ConsoleHome() {
   const [isUserModalVisible, setUserModalVisible] = useState(false);
   const [modalSelectedIndex, setModalSelectedIndex] = useState(0);
   const [isHomeBgModalVisible, setHomeBgModalVisible] = useState(false);
+  const [addModalFocusIndex, setAddModalFocusIndex] = useState(0);
+  const [bgModalFocusIndex, setBgModalFocusIndex] = useState(0);
+  const [settingsFocusArea, setSettingsFocusArea] = useState<'sidebar' | 'content'>('sidebar');
+  const [settingsFocusIndex, setSettingsFocusIndex] = useState(0);
+
+  const addModalTitleRef = useRef<TextInput>(null);
+  const addModalPathRef = useRef<TextInput>(null);
+  const settingsNameRef = useRef<TextInput>(null);
+
   const [isFavoritesVisible, setFavoritesVisible] = useState(false);
   const [isSettingsVisible, setSettingsVisible] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'home'>('profile');
@@ -319,7 +328,7 @@ export default function ConsoleHome() {
         checkButton(1, 'Escape');     // B / Circle
         checkButton(4, 'q');         // L1
         checkButton(5, 'e');         // R1
-        checkButton(9, 'Enter');      // Options/Start
+        checkButton(9, 'o');          // Options button maps to 'o' for "Añadir App"
       }
       rafId = requestAnimationFrame(poll);
     };
@@ -349,7 +358,23 @@ export default function ConsoleHome() {
     if (!isAddModalVisible && focusArea === 'footer') {
       setFocusArea('main_carousel');
     }
+    if (isAddModalVisible) {
+      setAddModalFocusIndex(0);
+      // Auto-focus first input after a small delay
+      setTimeout(() => addModalTitleRef.current?.focus(), 100);
+    }
   }, [isAddModalVisible]);
+
+  useEffect(() => {
+    if (isHomeBgModalVisible) setBgModalFocusIndex(0);
+  }, [isHomeBgModalVisible]);
+
+  useEffect(() => {
+    if (isSettingsVisible) {
+      setSettingsFocusArea('sidebar');
+      setSettingsFocusIndex(0);
+    }
+  }, [isSettingsVisible]);
 
   // Manejador global para salir de iframes o click en espacios vacíos
   const handleGlobalTouch = () => {
@@ -381,6 +406,23 @@ export default function ConsoleHome() {
           e.target.isContentEditable ||
           (e.target.getAttribute && e.target.getAttribute('type') === 'text')
         )) {
+          return;
+        }
+
+        // Global shortcut for Options button (Add App)
+        if (e.key === 'o' || e.key === 'O') {
+          if (!isLaunching) {
+            const willBeVisible = !isAddModalVisible;
+            setAddModalVisible(willBeVisible);
+            if (willBeVisible) {
+              // If opening, ensure other views are closed to avoid overlap
+              setDetailVisible(false);
+              setUserModalVisible(false);
+              setSettingsVisible(false);
+              setFavoritesVisible(false);
+              setHomeBgModalVisible(false);
+            }
+          }
           return;
         }
 
@@ -420,11 +462,106 @@ export default function ConsoleHome() {
             setSettingsVisible(false);
             setUserModalVisible(true);
             setFocusArea('header_user');
+          } else if (e.key === 'ArrowDown') {
+            if (settingsFocusArea === 'sidebar') {
+              setSettingsFocusIndex(prev => Math.min(prev + 1, 2));
+            } else {
+              setSettingsFocusIndex(prev => Math.min(prev + 1, settingsTab === 'profile' ? 2 : 1));
+            }
+          } else if (e.key === 'ArrowUp') {
+            setSettingsFocusIndex(prev => Math.max(prev - 1, 0));
+          } else if (e.key === 'ArrowRight' && settingsFocusArea === 'sidebar') {
+            setSettingsFocusArea('content');
+            setSettingsFocusIndex(0);
+          } else if (e.key === 'ArrowLeft' && settingsFocusArea === 'content') {
+            setSettingsFocusArea('sidebar');
+            setSettingsFocusIndex(settingsTab === 'profile' ? 0 : 1);
+          } else if (e.key === 'Enter') {
+            if (settingsFocusArea === 'sidebar') {
+              if (settingsFocusIndex === 0) setSettingsTab('profile');
+              else if (settingsFocusIndex === 1) setSettingsTab('home');
+              else if (settingsFocusIndex === 2) {
+                setSettingsVisible(false);
+                setUserModalVisible(true);
+              }
+            } else {
+              if (settingsTab === 'profile') {
+                if (settingsFocusIndex === 0) handleSelectAvatar();
+                else if (settingsFocusIndex === 1) settingsNameRef.current?.focus();
+              } else {
+                if (settingsFocusIndex === 0) {
+                   updateUser({ 
+                    settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) } 
+                  });
+                } else if (settingsFocusIndex === 1) {
+                  setSettingsVisible(false);
+                  setHomeBgModalVisible(true);
+                }
+              }
+            }
           }
           return;
         }
 
-        if (isAddModalVisible || isHomeBgModalVisible || isFavoritesVisible) return;
+        // Add App Modal Controls
+        if (isAddModalVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setAddModalVisible(false);
+          } else if (e.key === 'ArrowDown') {
+             setAddModalFocusIndex(prev => Math.min(prev + 1, 7));
+          } else if (e.key === 'ArrowUp') {
+             setAddModalFocusIndex(prev => Math.max(prev - 1, 0));
+          } else if (e.key === 'ArrowRight' && (addModalFocusIndex >= 1 && addModalFocusIndex <= 3)) {
+             setAddModalFocusIndex(prev => Math.min(prev + 1, 3));
+          } else if (e.key === 'ArrowLeft' && (addModalFocusIndex >= 1 && addModalFocusIndex <= 3)) {
+             setAddModalFocusIndex(prev => Math.max(prev - 1, 1));
+          } else if (e.key === 'ArrowRight' && (addModalFocusIndex === 6)) {
+             setAddModalFocusIndex(7);
+          } else if (e.key === 'ArrowLeft' && (addModalFocusIndex === 7)) {
+             setAddModalFocusIndex(6);
+          } else if (e.key === 'Enter') {
+             if (addModalFocusIndex === 0) addModalTitleRef.current?.focus();
+             else if (addModalFocusIndex === 1) setNewApp({ ...newApp, type: 'game' });
+             else if (addModalFocusIndex === 2) setNewApp({ ...newApp, type: 'media' });
+             else if (addModalFocusIndex === 3) setNewApp({ ...newApp, type: 'web' });
+             else if (addModalFocusIndex === 4) {
+               if (newApp.type === 'web') addModalPathRef.current?.focus();
+               else handleSelectExecutable();
+             }
+             else if (addModalFocusIndex === 5) handleSelectImage();
+             else if (addModalFocusIndex === 6) setAddModalVisible(false);
+             else if (addModalFocusIndex === 7) handleSaveApp();
+          }
+          return;
+        }
+
+        // Home Background Modal Controls
+        if (isHomeBgModalVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setHomeBgModalVisible(false);
+          } else if (e.key === 'ArrowDown') {
+            setBgModalFocusIndex(prev => Math.min(prev + 1, homeBackground ? 2 : 1));
+          } else if (e.key === 'ArrowUp') {
+            setBgModalFocusIndex(prev => Math.max(prev - 1, 0));
+          } else if (e.key === 'Enter') {
+            if (bgModalFocusIndex === 0) handleSelectHomeBg();
+            else if (bgModalFocusIndex === 1 && homeBackground) {
+              setHomeBackground(null);
+              localStorage.removeItem('home_background');
+              setHomeBgModalVisible(false);
+            } else {
+              setHomeBgModalVisible(false);
+            }
+          }
+          return;
+        }
+
+        if (isFavoritesVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setFavoritesVisible(false);
+          }
+          return;
+        }
 
         // --- SPATIAL NAVIGATION ---
 
@@ -590,8 +727,6 @@ export default function ConsoleHome() {
             }
           } else if (focusArea === 'header_user') {
             setUserModalVisible(true);
-          } else if (focusArea === 'footer') {
-            setAddModalVisible(true);
           } else if (focusArea === 'bottom_news') {
             if (focusIndex === news.length) { // Back to top button
               setFocusArea('main_carousel');
@@ -623,7 +758,7 @@ export default function ConsoleHome() {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [activeTab, currentData, activeIndex, focusArea, focusIndex, isAddModalVisible, isDetailVisible, isUserModalVisible, isFavoritesVisible, selectedItem, modalSelectedIndex]);
+  }, [activeTab, currentData, activeIndex, focusArea, focusIndex, isAddModalVisible, isDetailVisible, isUserModalVisible, isFavoritesVisible, selectedItem, modalSelectedIndex, addModalFocusIndex, bgModalFocusIndex, settingsFocusArea, settingsFocusIndex, settingsTab, isHomeBgModalVisible, homeBackground, newApp]);
 
   // Auto-scroll: with dynamic padding the active item always lands at the screen center
   useEffect(() => {
@@ -1348,7 +1483,8 @@ export default function ConsoleHome() {
             <Text style={styles.modalTitle}>Añadir Nueva Aplicación</Text>
 
             <TextInput
-              style={styles.input}
+              ref={addModalTitleRef}
+              style={[styles.input, addModalFocusIndex === 0 && styles.inputFocused]}
               placeholder="Nombre de la Aplicación"
               placeholderTextColor="#888"
               value={newApp.title}
@@ -1357,19 +1493,19 @@ export default function ConsoleHome() {
 
             <View style={styles.pickerRow}>
               <TouchableOpacity
-                style={[styles.typeBtn, newApp.type === 'game' && styles.typeBtnActive]}
+                style={[styles.typeBtn, newApp.type === 'game' && styles.typeBtnActive, addModalFocusIndex === 1 && styles.buttonFocused]}
                 onPress={() => setNewApp({ ...newApp, type: 'game' })}
               >
                 <Text style={styles.typeBtnText}>Games</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.typeBtn, newApp.type === 'media' && styles.typeBtnActive]}
+                style={[styles.typeBtn, newApp.type === 'media' && styles.typeBtnActive, addModalFocusIndex === 2 && styles.buttonFocused]}
                 onPress={() => setNewApp({ ...newApp, type: 'media' })}
               >
                 <Text style={styles.typeBtnText}>Media</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.typeBtn, newApp.type === 'web' && styles.typeBtnActive]}
+                style={[styles.typeBtn, newApp.type === 'web' && styles.typeBtnActive, addModalFocusIndex === 3 && styles.buttonFocused]}
                 onPress={() => setNewApp({ ...newApp, type: 'web' })}
               >
                 <Text style={styles.typeBtnText}>Web</Text>
@@ -1378,14 +1514,18 @@ export default function ConsoleHome() {
 
             {newApp.type === 'web' ? (
               <TextInput
-                style={styles.input}
+                ref={addModalPathRef}
+                style={[styles.input, addModalFocusIndex === 4 && styles.inputFocused]}
                 placeholder="URL (https://...)"
                 placeholderTextColor="#888"
                 value={newApp.path}
                 onChangeText={(text) => setNewApp({ ...newApp, path: text })}
               />
             ) : (
-              <TouchableOpacity style={styles.fileBtn} onPress={handleSelectExecutable}>
+              <TouchableOpacity 
+                style={[styles.fileBtn, addModalFocusIndex === 4 && styles.buttonFocused]} 
+                onPress={handleSelectExecutable}
+              >
                 <Ionicons name="folder-open" size={20} color="#FFF" />
                 <Text style={styles.fileBtnText}>
                   {newApp.path ? 'Ruta: ...' + newApp.path.slice(-20) : 'Seleccionar Ejecutable (.exe)'}
@@ -1393,7 +1533,10 @@ export default function ConsoleHome() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={styles.fileBtn} onPress={handleSelectImage}>
+            <TouchableOpacity 
+              style={[styles.fileBtn, addModalFocusIndex === 5 && styles.buttonFocused]} 
+              onPress={handleSelectImage}
+            >
               <Ionicons name="image" size={20} color="#FFF" />
               <Text style={styles.fileBtnText}>
                 {newApp.image ? 'Portada: ...' + newApp.image.slice(-20) : 'Portada (Opcional - Auto-fetch)'}
@@ -1402,14 +1545,14 @@ export default function ConsoleHome() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }]}
+                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }, addModalFocusIndex === 6 && styles.buttonFocused]}
                 onPress={() => !isSaving && setAddModalVisible(false)}
                 disabled={isSaving}
               >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }]}
+                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }, addModalFocusIndex === 7 && styles.buttonFocused]}
                 onPress={handleSaveApp}
                 disabled={isSaving}
               >
@@ -1429,14 +1572,17 @@ export default function ConsoleHome() {
               Selecciona una imagen personalizada para el fondo de tu pantalla principal.
             </Text>
 
-            <TouchableOpacity style={styles.fileBtn} onPress={handleSelectHomeBg}>
+            <TouchableOpacity 
+              style={[styles.fileBtn, bgModalFocusIndex === 0 && styles.buttonFocused]} 
+              onPress={handleSelectHomeBg}
+            >
               <Ionicons name="image" size={24} color="#FFF" />
               <Text style={styles.fileBtnText}>Seleccionar Imagen de Fondo</Text>
             </TouchableOpacity>
 
             {homeBackground && (
               <TouchableOpacity
-                style={[styles.fileBtn, { backgroundColor: '#442222' }]}
+                style={[styles.fileBtn, { backgroundColor: '#442222' }, bgModalFocusIndex === 1 && styles.buttonFocused]}
                 onPress={() => {
                   setHomeBackground(null);
                   localStorage.removeItem('home_background');
@@ -1449,7 +1595,10 @@ export default function ConsoleHome() {
             )}
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setHomeBgModalVisible(false)}>
+              <TouchableOpacity 
+                style={[styles.cancelBtn, bgModalFocusIndex === (homeBackground ? 2 : 1) && styles.buttonFocused]} 
+                onPress={() => setHomeBgModalVisible(false)}
+              >
                 <Text style={styles.cancelBtnText}>Cerrar</Text>
               </TouchableOpacity>
             </View>
@@ -1472,7 +1621,7 @@ export default function ConsoleHome() {
               <Text style={styles.settingsSidebarTitle}>Ajustes</Text>
               
               <TouchableOpacity 
-                style={[styles.settingsTab, settingsTab === 'profile' && styles.settingsTabActive]}
+                style={[styles.settingsTab, settingsTab === 'profile' && styles.settingsTabActive, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 0) && styles.buttonFocused]}
                 onPress={() => setSettingsTab('profile')}
               >
                 <Ionicons name="person-outline" size={20} color={settingsTab === 'profile' ? '#00FFFF' : '#AAA'} />
@@ -1480,7 +1629,7 @@ export default function ConsoleHome() {
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.settingsTab, settingsTab === 'home' && styles.settingsTabActive]}
+                style={[styles.settingsTab, settingsTab === 'home' && styles.settingsTabActive, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 1) && styles.buttonFocused]}
                 onPress={() => setSettingsTab('home')}
               >
                 <Ionicons name="home-outline" size={20} color={settingsTab === 'home' ? '#00FFFF' : '#AAA'} />
@@ -1490,7 +1639,7 @@ export default function ConsoleHome() {
               <View style={{ flex: 1 }} />
               
               <TouchableOpacity 
-                style={styles.settingsSidebarClose}
+                style={[styles.settingsSidebarClose, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 2) && styles.buttonFocused]}
                 onPress={() => {
                   setSettingsVisible(false);
                   setUserModalVisible(true);
@@ -1509,7 +1658,14 @@ export default function ConsoleHome() {
                   
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingsLabel}>Foto de Perfil</Text>
-                    <TouchableOpacity onPress={handleSelectAvatar} style={[styles.settingsAvatarContainer, { borderColor: activeUser?.color || '#00FFFF' }]}>
+                    <TouchableOpacity 
+                      onPress={handleSelectAvatar} 
+                      style={[
+                        styles.settingsAvatarContainer, 
+                        { borderColor: activeUser?.color || '#00FFFF' },
+                        (settingsFocusArea === 'content' && settingsFocusIndex === 0) && styles.buttonFocused
+                      ]}
+                    >
                       {activeUser?.avatar ? (
                         <Image source={{ uri: (activeUser as any).avatarBase64 || activeUser.avatar }} style={styles.settingsAvatar} />
                       ) : (
@@ -1526,7 +1682,8 @@ export default function ConsoleHome() {
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingsLabel}>Nombre de Usuario</Text>
                     <TextInput
-                      style={styles.settingsInput}
+                      ref={settingsNameRef}
+                      style={[styles.settingsInput, (settingsFocusArea === 'content' && settingsFocusIndex === 1) && styles.inputFocused]}
                       value={activeUser?.name || ''}
                       onChangeText={(text) => updateUser({ name: text })}
                       placeholder="Ingresa tu nombre"
@@ -1566,7 +1723,8 @@ export default function ConsoleHome() {
                       })}
                       style={[
                         styles.toggleContainer, 
-                        (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleContainerActive
+                        (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleContainerActive,
+                        (settingsFocusArea === 'content' && settingsFocusIndex === 0) && styles.buttonFocused
                       ]}
                     >
                       <View style={[
@@ -1579,7 +1737,7 @@ export default function ConsoleHome() {
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingsLabel}>Fondo de Pantalla</Text>
                     <TouchableOpacity 
-                      style={styles.settingsSecondaryBtn}
+                      style={[styles.settingsSecondaryBtn, (settingsFocusArea === 'content' && settingsFocusIndex === 1) && styles.buttonFocused]}
                       onPress={() => {
                         setSettingsVisible(false);
                         setHomeBgModalVisible(true);
@@ -1624,7 +1782,7 @@ export default function ConsoleHome() {
               {/* Power Buttons */}
               <View style={styles.powerButtonsContainer}>
                 <TouchableOpacity
-                  style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive]}
+                  style={[styles.powerButton, modalSelectedIndex === 0 && styles.powerButtonActive, modalSelectedIndex === 0 && styles.buttonFocused]}
                   activeOpacity={0.8}
                   onPress={() => {
                     setModalSelectedIndex(0);
@@ -1636,7 +1794,7 @@ export default function ConsoleHome() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive]}
+                  style={[styles.powerButton, modalSelectedIndex === 1 && styles.powerButtonActive, modalSelectedIndex === 1 && styles.buttonFocused]}
                   activeOpacity={0.8}
                   onPress={() => setModalSelectedIndex(1)}
                 >
@@ -1644,7 +1802,7 @@ export default function ConsoleHome() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive]}
+                  style={[styles.powerButton, modalSelectedIndex === 2 && styles.powerButtonActive, modalSelectedIndex === 2 && styles.buttonFocused]}
                   activeOpacity={0.8}
                   onPress={() => {
                     setModalSelectedIndex(2);
@@ -1656,7 +1814,7 @@ export default function ConsoleHome() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive]}
+                  style={[styles.powerButton, modalSelectedIndex === 3 && styles.powerButtonActive, modalSelectedIndex === 3 && styles.buttonFocused]}
                   activeOpacity={0.8}
                   onPress={() => {
                     setModalSelectedIndex(3);
@@ -1842,6 +2000,11 @@ const styles = StyleSheet.create({
   modalContent: { width: 400, backgroundColor: '#2A2A2A', borderRadius: 12, padding: 25, borderWidth: 1, borderColor: '#444' },
   modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   input: { backgroundColor: '#111', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 15, borderWidth: 1, borderColor: '#444' },
+  inputFocused: {
+    borderColor: '#00FFFF',
+    borderWidth: 2,
+    backgroundColor: '#111',
+  },
   pickerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   typeBtn: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#111', borderRadius: 8, marginHorizontal: 5, borderWidth: 1, borderColor: '#444' },
   typeBtnActive: { borderColor: '#00FFFF', backgroundColor: '#333' },
@@ -1909,6 +2072,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 10,
     transform: [{ scale: 1.05 }],
+  },
+  buttonFocused: {
+    borderColor: '#00FFFF',
+    borderWidth: 3,
+    shadowColor: '#00FFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    transform: [{ scale: 1.05 }],
+    zIndex: 10,
   },
   tabFocused: {
     color: '#00FFFF',

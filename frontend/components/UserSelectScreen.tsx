@@ -132,16 +132,32 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
       const currentIndex = allIds.indexOf(hoveredId || 'add');
 
       if (e.key === 'ArrowRight') {
+        if (hoveredId === 'power') return;
         soundService.playNavigation();
         const nextIndex = (currentIndex + 1) % totalItems;
         setHoveredId(allIds[nextIndex]);
       } else if (e.key === 'ArrowLeft') {
+        if (hoveredId === 'power') return;
         soundService.playNavigation();
         const nextIndex = (currentIndex - 1 + totalItems) % totalItems;
         setHoveredId(allIds[nextIndex]);
+      } else if (e.key === 'ArrowDown') {
+        if (hoveredId !== 'power') {
+          soundService.playNavigation();
+          setHoveredId('power');
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (hoveredId === 'power') {
+          soundService.playNavigation();
+          setHoveredId(users.length > 0 ? users[0].id : 'add');
+        }
       } else if (e.key === 'Enter') {
         soundService.playActivation();
-        if (hoveredId === 'add') {
+        if (hoveredId === 'power') {
+          if (Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.closeApp();
+          }
+        } else if (hoveredId === 'add') {
           const newUser: UserProfile = {
             id: Date.now().toString(),
             name: `Player ${users.length + 1}`,
@@ -190,6 +206,8 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
         if (now - lastMoveTime > THROTTLE) {
           if (buttons[14]?.pressed || gp.axes[0] < -0.5) dispatch('ArrowLeft');
           else if (buttons[15]?.pressed || gp.axes[0] > 0.5) dispatch('ArrowRight');
+          else if (buttons[12]?.pressed || gp.axes[1] < -0.5) dispatch('ArrowUp');
+          else if (buttons[13]?.pressed || gp.axes[1] > 0.5) dispatch('ArrowDown');
         }
 
         const checkButton = (idx: number, key: string) => {
@@ -307,7 +325,15 @@ export default function UserSelectScreen({ onUserSelected }: UserSelectScreenPro
       </View>
 
       {/* BOTTOM POWER BUTTON */}
-      <TouchableOpacity style={styles.powerButton} activeOpacity={0.7}>
+      <TouchableOpacity 
+        style={[styles.powerButton, hoveredId === 'power' && styles.powerButtonFocused]} 
+        activeOpacity={0.7}
+        onPress={() => {
+          if (Platform.OS === 'web' && (window as any).electronAPI) {
+            (window as any).electronAPI.closeApp();
+          }
+        }}
+      >
         <Ionicons name="power" size={24} color="#FFF" />
       </TouchableOpacity>
 
@@ -448,6 +474,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  powerButtonFocused: {
+    backgroundColor: '#FF3B30',
+    borderColor: '#FFF',
+    transform: [{ scale: 1.2 }],
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
   },
   bottomRightHint: {
     position: 'absolute',
