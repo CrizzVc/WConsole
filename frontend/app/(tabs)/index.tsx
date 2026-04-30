@@ -8,6 +8,7 @@ import YoutubePlayer from '@/components/YoutubePlayer';
 import GameDetailView from '@/components/GameDetailView';
 import FavoritesView from '@/components/FavoritesView';
 import ControlPrompt from '@/components/ControlPrompt';
+import RandomSelectorView from '@/components/RandomSelectorView';
 import { useUser } from '@/contexts/UserContext';
 import { Linking } from 'react-native';
 import { fetchGamingNews, NewsArticle } from '@/services/newsService';
@@ -105,6 +106,7 @@ export default function ConsoleHome() {
   const [settingsTab, setSettingsTab] = useState<'profile' | 'home'>('profile');
   const [homeBackground, setHomeBackground] = useState<any>(null);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [isRandomSelectorVisible, setRandomSelectorVisible] = useState(false);
 
   // Background transition states
   const [bgA, setBgA] = useState<any>(null);
@@ -555,6 +557,12 @@ export default function ConsoleHome() {
           }
           return;
         }
+        if (isRandomSelectorVisible) {
+          if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
+            setRandomSelectorVisible(false);
+          }
+          return;
+        }
 
         if (isFavoritesVisible) {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
@@ -588,11 +596,11 @@ export default function ConsoleHome() {
             }
           } else if (focusArea === 'widgets_row') {
             setFocusArea('bottom_news');
-            setFocusIndex(0);
+            setFocusIndex(0); // Start at first news article
             mainVerticalScrollRef.current?.scrollTo({ y: 550, animated: true });
           } else if (focusArea === 'bottom_news') {
             const nextIdx = focusIndex + 1;
-            const maxIdx = news.length; // news items + back to top
+            const maxIdx = news.length; 
             if (nextIdx <= maxIdx) {
               setFocusIndex(nextIdx);
               mainVerticalScrollRef.current?.scrollTo({ y: 350 + nextIdx * 140, animated: true });
@@ -613,7 +621,15 @@ export default function ConsoleHome() {
             mainVerticalScrollRef.current?.scrollToEnd({ animated: true });
           } else if (focusArea === 'bottom_news') {
             const nextIdx = focusIndex - 1;
-            if (nextIdx >= 0) {
+            if (nextIdx >= 0 || (focusIndex === -1)) {
+              // If we were at -1 (Random Card), we should go to widgets or stay. 
+              // But ArrowUp from -1 should go up.
+              if (focusIndex === -1) {
+                setFocusArea('widgets_row');
+                setFocusIndex(0);
+                mainVerticalScrollRef.current?.scrollTo({ y: 350, animated: true });
+                return;
+              }
               setFocusIndex(nextIdx);
               mainVerticalScrollRef.current?.scrollTo({ y: 550 + nextIdx * 140, animated: true });
             } else {
@@ -649,15 +665,9 @@ export default function ConsoleHome() {
         if (e.key === 'ArrowRight') {
           soundService.playNavigation();
           if (focusArea === 'main_carousel') {
-            if (activeTab === 'Biblioteca') {
-              const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
-              setActiveIndex(nextIdx);
-              setFocusIndex(nextIdx);
-            } else {
-              const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
-              setActiveIndex(nextIdx);
-              setFocusIndex(nextIdx);
-            }
+            const nextIdx = Math.min(activeIndex + 1, currentData.length - 1);
+            setActiveIndex(nextIdx);
+            setFocusIndex(nextIdx);
           } else if (focusArea === 'widgets_row') {
             setFocusIndex((prev) => Math.min(prev + 1, 2)); // 3 widgets total
           } else if (focusArea === 'header_tabs') {
@@ -666,7 +676,9 @@ export default function ConsoleHome() {
             setActiveTab(TABS[nextIdx]);
             setActiveIndex(0);
           } else if (focusArea === 'bottom_news') {
-            // No horizontal move in vertical news list
+            if (focusIndex !== -1) {
+              setFocusIndex(-1); // Move to Random Card on the right
+            }
           }
           return;
         }
@@ -685,7 +697,9 @@ export default function ConsoleHome() {
             setActiveTab(TABS[nextIdx]);
             setActiveIndex(0);
           } else if (focusArea === 'bottom_news') {
-            // No horizontal move in vertical news list
+            if (focusIndex === -1) {
+              setFocusIndex(0);
+            }
           }
           return;
         }
@@ -728,6 +742,10 @@ export default function ConsoleHome() {
           } else if (focusArea === 'header_user') {
             setUserModalVisible(true);
           } else if (focusArea === 'bottom_news') {
+            if (focusIndex === -1) {
+              setRandomSelectorVisible(true);
+              return;
+            }
             if (focusIndex === news.length) { // Back to top button
               setFocusArea('main_carousel');
               setFocusIndex(activeIndex);
@@ -1353,58 +1371,85 @@ export default function ConsoleHome() {
         </View>
 
         {/* BOTTOM NEWS SECTION (VERTICAL) */}
-        <View style={styles.newsContainerVertical}>
-          <View style={styles.newsHeaderContainer}>
-            <Ionicons name="newspaper-outline" size={18} color="#00FFFF" />
-            <Text style={styles.newsSectionTitle}>ÚLTIMAS NOTICIAS</Text>
-          </View>
-          <View style={styles.newsListVertical}>
-            {news.length > 0 ? (
-              news.map((article, index) => (
+        <View style={styles.newsAndRandomContainer}>
+          <View style={styles.newsContainerVertical}>
+            <View style={styles.newsHeaderContainer}>
+              <Ionicons name="newspaper-outline" size={18} color="#00FFFF" />
+              <Text style={styles.newsSectionTitle}>ÚLTIMAS NOTICIAS</Text>
+            </View>
+            <View style={styles.newsListVertical}>
+              {news.length > 0 ? (
+                news.map((article, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.newsCardVertical,
+                      (focusArea === 'bottom_news' && focusIndex === index) && styles.itemFocused
+                    ]}
+                    onPress={() => {
+                      setFocusArea('bottom_news');
+                      setFocusIndex(index);
+                      Linking.openURL(article.url);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Image source={{ uri: article.urlToImage }} style={styles.newsImageVertical} contentFit="cover" />
+                    <View style={styles.newsOverlayVertical}>
+                      <Text style={styles.newsSourcePremium}>{article.source.name.toUpperCase()}</Text>
+                      <Text numberOfLines={2} style={styles.newsTitleVertical}>{article.title}</Text>
+                      <Text numberOfLines={2} style={styles.newsDescVertical}>{article.description}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.newsLoadingContainer}>
+                  <Text style={styles.newsLoadingText}>Cargando novedades del mundo gaming...</Text>
+                </View>
+              )}
+
+              {/* BACK TO TOP BUTTON at the end of the vertical list */}
+              {news.length > 0 && (
                 <TouchableOpacity
-                  key={index}
                   style={[
-                    styles.newsCardVertical,
-                    (focusArea === 'bottom_news' && focusIndex === index) && styles.itemFocused
+                    styles.backToTopCardVertical,
+                    (focusArea === 'bottom_news' && focusIndex === news.length) && styles.itemFocused
                   ]}
                   onPress={() => {
-                    setFocusArea('bottom_news');
-                    setFocusIndex(index);
-                    Linking.openURL(article.url);
+                    setFocusArea('main_carousel');
+                    setFocusIndex(activeIndex);
+                    mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
                   }}
-                  activeOpacity={0.8}
                 >
-                  <Image source={{ uri: article.urlToImage }} style={styles.newsImageVertical} contentFit="cover" />
-                  <View style={styles.newsOverlayVertical}>
-                    <Text style={styles.newsSourcePremium}>{article.source.name.toUpperCase()}</Text>
-                    <Text numberOfLines={2} style={styles.newsTitleVertical}>{article.title}</Text>
-                    <Text numberOfLines={2} style={styles.newsDescVertical}>{article.description}</Text>
-                  </View>
+                  <Ionicons name="arrow-up" size={24} color="#00FFFF" />
+                  <Text style={styles.backToTopText}>VOLVER AL PRINCIPIO</Text>
                 </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.newsLoadingContainer}>
-                <Text style={styles.newsLoadingText}>Cargando novedades del mundo gaming...</Text>
-              </View>
-            )}
+              )}
+            </View>
+          </View>
 
-            {/* BACK TO TOP BUTTON at the end of the vertical list */}
-            {news.length > 0 && (
-              <TouchableOpacity
-                style={[
-                  styles.backToTopCardVertical,
-                  (focusArea === 'bottom_news' && focusIndex === news.length) && styles.itemFocused
-                ]}
-                onPress={() => {
-                  setFocusArea('main_carousel');
-                  setFocusIndex(activeIndex);
-                  mainVerticalScrollRef.current?.scrollTo({ y: 0, animated: true });
-                }}
-              >
-                <Ionicons name="arrow-up" size={24} color="#00FFFF" />
-                <Text style={styles.backToTopText}>VOLVER AL PRINCIPIO</Text>
-              </TouchableOpacity>
-            )}
+          {/* RANDOM GAME CARD ON THE RIGHT */}
+          <View style={styles.randomCardContainer}>
+             <TouchableOpacity
+               style={[
+                 styles.randomCard,
+                 (focusArea === 'bottom_news' && focusIndex === -1) && styles.itemFocused
+               ]}
+               onPress={() => setRandomSelectorVisible(true)}
+               activeOpacity={0.8}
+             >
+               <BlurView intensity={30} tint="dark" style={styles.randomCardBlur}>
+                 <View style={styles.randomCardContent}>
+                   <MaterialCommunityIcons name="dice-multiple" size={60} color="#CCFF00" />
+                   <View style={styles.randomCardText}>
+                     <Text style={styles.randomCardTitle}>SELECCIONAR JUEGO ALEATORIO</Text>
+                     <Text style={styles.randomCardSub}>¿NO SABES QUÉ JUGAR? PRUEBA TU SUERTE</Text>
+                   </View>
+                 </View>
+                 
+                 {/* Decorative Slant */}
+                 <View style={styles.randomCardSlantDecor} />
+               </BlurView>
+             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -1461,6 +1506,27 @@ export default function ConsoleHome() {
         favorites={currentData[activeIndex]?.isGrid ? media.filter(m => m.isFavorite) : games.filter(g => g.isFavorite)}
         onClose={() => setFavoritesVisible(false)}
         onLaunch={(item) => {
+          if (item.path?.startsWith('http')) {
+            Linking.openURL(item.path);
+            return;
+          }
+          if (item.path && Platform.OS === 'web' && (window as any).electronAPI) {
+            setIsLaunching(true);
+            (window as any).electronAPI.launchApp(item.id, item.path).then(() => {
+              loadApps();
+              setTimeout(() => setIsLaunching(false), 4000);
+            });
+          }
+        }}
+      />
+
+      <RandomSelectorView
+        isVisible={isRandomSelectorVisible}
+        games={games}
+        inputMode={inputMode}
+        onClose={() => setRandomSelectorVisible(false)}
+        onLaunch={(item) => {
+          setRandomSelectorVisible(false);
           if (item.path?.startsWith('http')) {
             Linking.openURL(item.path);
             return;
@@ -1899,7 +1965,73 @@ const styles = StyleSheet.create({
   folderEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   activeSubtitleContainer: { paddingHorizontal: 50, marginTop: 15, height: 20 },
   activeSubtitle: { color: '#888', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-  newsContainerVertical: { marginTop: 40, width: '40%', paddingBottom: 20 },
+  newsLoadingText: {
+    color: '#666',
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  newsAndRandomContainer: {
+    flexDirection: 'row',
+    marginTop: 40,
+    paddingBottom: 20,
+    paddingHorizontal: 0,
+  },
+  newsContainerVertical: { 
+    width: '40%', 
+  },
+  randomCardContainer: {
+    flex: 1,
+    paddingLeft: 30,
+    paddingRight: 50,
+    justifyContent: 'flex-start',
+    paddingTop: 45, // align with news list start
+  },
+  randomCard: {
+    width: '100%',
+    height: 250,
+    borderRadius: 25,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  randomCardBlur: {
+    flex: 1,
+    padding: 30,
+    backgroundColor: 'rgba(204, 255, 0, 0.05)',
+  },
+  randomCardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+  },
+  randomCardText: {
+    alignItems: 'center',
+  },
+  randomCardTitle: {
+    color: '#CCFF00',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  randomCardSub: {
+    color: '#888',
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  randomCardSlantDecor: {
+    position: 'absolute',
+    bottom: -20,
+    right: -20,
+    width: 100,
+    height: 100,
+    backgroundColor: '#CCFF00',
+    transform: [{ rotate: '45deg' }],
+    opacity: 0.1,
+  },
   newsHeaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
