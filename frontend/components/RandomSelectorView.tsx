@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Animated, { 
@@ -8,28 +8,42 @@ import Animated, {
   withTiming, 
   withSpring,
   runOnJS,
+  interpolate,
+  Easing,
+  useAnimatedReaction,
 } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConsoleItem } from '@/app/(tabs)/index';
 import { soundService } from '@/services/soundService';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface Props {
   isVisible: boolean;
   games: ConsoleItem[];
   onClose: () => void;
   onLaunch: (item: ConsoleItem) => void;
-  inputMode?: 'keyboard' | 'gamepad';
 }
 
-export default function RandomSelectorView({ isVisible, games, onClose, onLaunch, inputMode }: Props) {
+export default function RandomSelectorView({ isVisible, games, onClose, onLaunch }: Props) {
   const [isRolling, setIsRolling] = useState(false);
   const [displayGames, setDisplayGames] = useState<ConsoleItem[]>([]);
   const [rollCount, setRollCount] = useState(0);
   
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
+  const rollX = useSharedValue(0);
+  const { width: windowWidth } = useWindowDimensions();
+  const CARD_WIDTH = 240;
+  const GAP = 30;
+  const ITEM_SIZE = CARD_WIDTH + GAP;
+
+  useAnimatedReaction(
+    () => Math.floor(rollX.value / ITEM_SIZE),
+    (next, prev) => {
+      if (next !== prev && next !== null && isRolling) {
+        runOnJS(() => soundService.playNavigation())();
+      }
+    }
+  );
 
   useEffect(() => {
     if (isVisible) {
@@ -39,34 +53,40 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
     } else {
       opacity.value = withTiming(0, { duration: 200 });
       scale.value = withTiming(0.9, { duration: 200 });
+      rollX.value = 0;
     }
   }, [isVisible]);
 
   const startRoll = useCallback(() => {
-    if (games.length === 0) return;
+    const available = games.filter(g => !g.isFolder && !g.isGrid && g.id !== '1' && g.id !== 'last_played');
+    if (available.length === 0 || isRolling) return;
+    
     setIsRolling(true);
     setRollCount(prev => prev + 1);
     
-    // Pick 3 random games for display
-    // We want unique games if possible
-    const available = games.filter(g => !g.isFolder && !g.isGrid && g.id !== '1' && g.id !== 'last_played');
-    if (available.length === 0) {
-      setIsRolling(false);
-      return;
+    // Create a long list for the conveyor belt
+    const longList: ConsoleItem[] = [];
+    for (let i = 0; i < 45; i++) {
+      longList.push(available[Math.floor(Math.random() * available.length)]);
     }
+    setDisplayGames(longList);
+    
+    rollX.value = 0;
 
-    const shuffled = [...available].sort(() => 0.5 - Math.random());
-    setDisplayGames(shuffled.slice(0, 3));
-    
-    // Simulate "rolling" effect with a timeout
-    const rollEffect = setTimeout(() => {
-      setIsRolling(false);
-      soundService.playActivation();
-    }, 1200);
-    
-    soundService.playNavigation();
-    return () => clearTimeout(rollEffect);
-  }, [games]);
+    // Land on the penultimate item
+    const targetIndex = longList.length - 2;
+    const targetOffset = -targetIndex * ITEM_SIZE;
+
+    rollX.value = withTiming(targetOffset, { 
+      duration: 3800, 
+      easing: Easing.bezier(0.15, 0, 0, 1)
+    }, (finished) => {
+      if (finished) {
+        runOnJS(setIsRolling)(false);
+        runOnJS(() => soundService.playActivation())();
+      }
+    });
+  }, [games, isRolling, ITEM_SIZE]);
 
   useEffect(() => {
     const handleKeyDown = (e: any) => {
@@ -75,8 +95,8 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
       if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
         onClose();
       } else if (e.key === 'Enter' || e.key === 'a' || e.key === 'A') {
-        if (!isRolling && displayGames[1]) {
-          onLaunch(displayGames[1]);
+        if (!isRolling && displayGames.length > 0) {
+          onLaunch(displayGames[displayGames.length - 2]);
         }
       } else if (e.key === 'x' || e.key === 'X' || e.key === 'r' || e.key === 'R') {
         if (!isRolling) startRoll();
@@ -94,6 +114,10 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
     transform: [{ scale: scale.value }]
   }));
 
+  const rollWrapperStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: rollX.value - (CARD_WIDTH / 2 + 15) }]
+  }));
+
   if (!isVisible) return null;
 
   return (
@@ -102,7 +126,6 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
         
         <Animated.View style={[styles.content, animatedStyle]}>
-          {/* AMBIENTACIÓN TAG (TOP LEFT) */}
           <View style={styles.topHeader}>
             <View style={styles.slantedTag}>
               <Text style={styles.tagLabel}>AMBIENTACIÓN</Text>
@@ -111,51 +134,20 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
             </View>
           </View>
 
-          {/* CARDS AREA */}
-          <View style={styles.cardsContainer}>
-            {displayGames.map((game, index) => {
-              const isMiddle = index === 1;
-              return (
-                <View 
+          <View style={styles.cardsViewPort}>
+            <Animated.View style={[styles.rollWrapper, rollWrapperStyle]}>
+              {displayGames.map((game, index) => (
+                <RollCard 
                   key={game.id + index} 
-                  style={[
-                    styles.cardWrapper, 
-                    isMiddle ? styles.cardMiddle : styles.cardSide,
-                    !isMiddle && { opacity: 0.4 }
-                  ]}
-                >
-                  <View style={styles.cardSlant}>
-                    <Image source={game.image} style={styles.cardImage} contentFit="cover" />
-                    <View style={styles.cardOverlay}>
-                       <View style={styles.gameLogoBox}>
-                          <MaterialCommunityIcons name="zeta" size={24} color="#FFF" />
-                       </View>
-                       
-                       <View style={styles.cardInfo}>
-                          <Text style={styles.cardTitle}>{game.title?.toUpperCase() || 'JUEGO'}</Text>
-                          {isMiddle && (
-                            <>
-                              <Text style={styles.cardSubtitle}>Seleccionado</Text>
-                              <Text style={styles.cardDesc} numberOfLines={2}>
-                                {game.description || "Un desafío aleatorio te espera. ¿Estás listo para jugar?"}
-                              </Text>
-                            </>
-                          )}
-                       </View>
-                    </View>
-                    
-                    <View style={styles.slantLines}>
-                      <View style={styles.slantLine} />
-                      <View style={styles.slantLine} />
-                      <View style={styles.slantLine} />
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
+                  game={game} 
+                  index={index} 
+                  rollX={rollX} 
+                  itemSize={ITEM_SIZE} 
+                />
+              ))}
+            </Animated.View>
           </View>
 
-          {/* BOTTOM CONTROLS */}
           <View style={styles.bottomLeftControls}>
              <TouchableOpacity style={styles.controlBtn} onPress={onClose}>
                 <View style={styles.btnIconCircle}><Text style={styles.btnIconText}>B</Text></View>
@@ -171,7 +163,7 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
 
              <TouchableOpacity 
                style={[styles.controlBtn, styles.confirmBtn]} 
-               onPress={() => displayGames[1] && onLaunch(displayGames[1])}
+               onPress={() => displayGames.length > 0 && onLaunch(displayGames[displayGames.length - 2])}
                disabled={isRolling}
              >
                 <View style={[styles.btnIconCircle, { backgroundColor: '#00FFFF' }]}><Text style={[styles.btnIconText, { color: '#000' }]}>A</Text></View>
@@ -181,6 +173,48 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
         </Animated.View>
       </View>
     </Modal>
+  );
+}
+
+function RollCard({ game, index, rollX, itemSize }: { game: ConsoleItem, index: number, rollX: any, itemSize: number }) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const position = index * itemSize + rollX.value;
+    const scale = interpolate(
+      position,
+      [-itemSize, 0, itemSize],
+      [0.85, 1.15, 0.85],
+      'clamp'
+    );
+    const opacity = interpolate(
+      position,
+      [-itemSize * 2, -itemSize, 0, itemSize, itemSize * 2],
+      [0, 0.4, 1, 0.4, 0],
+      'clamp'
+    );
+
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.cardWrapper, animatedStyle]}>
+      <View style={styles.cardSlant}>
+        <Image source={game.image} style={styles.cardImage} contentFit="cover" />
+        <View style={styles.cardOverlay}>
+          <View style={styles.gameLogoBox}>
+            <MaterialCommunityIcons name="zeta" size={24} color="#FFF" />
+          </View>
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardTitle}>{game.title?.toUpperCase() || 'JUEGO'}</Text>
+          </View>
+        </View>
+        <View style={styles.slantLines}>
+          <View style={styles.slantLine} /><View style={styles.slantLine} /><View style={styles.slantLine} />
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -227,47 +261,26 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 2,
   },
-  navArrowContainer: {
-    marginTop: 20,
+  cardsViewPort: {
+    width: '100%',
+    height: 600,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  arrowBox: {
-    width: 60,
-    height: 40,
-    backgroundColor: '#000',
-    borderWidth: 2,
-    borderColor: '#FFF',
-    borderRadius: 15,
-    transform: [{ skewX: '-15deg' }],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrowBoxRight: {
-    backgroundColor: '#FFF',
-    borderColor: '#000',
-  },
-  cardsContainer: {
+  rollWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 30,
-    marginTop: 20,
+    position: 'absolute',
+    left: '50%',
+    height: '100%',
   },
   cardWrapper: {
-    width: 220,
-    height: 500,
+    width: 240,
+    height: 520,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#111',
-  },
-  cardMiddle: {
-    width: 280,
-    height: 600,
-    zIndex: 10,
-    borderWidth: 2,
-    borderColor: '#FFF',
-  },
-  cardSide: {
-    transform: [{ scale: 0.85 }],
+    marginHorizontal: 15,
   },
   cardSlant: {
     flex: 1,
@@ -298,21 +311,10 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: '#FFF',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
-    lineHeight: 32,
+    lineHeight: 28,
     marginBottom: 5,
-  },
-  cardSubtitle: {
-    color: '#CCFF00',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  cardDesc: {
-    color: '#AAA',
-    fontSize: 12,
-    lineHeight: 18,
   },
   slantLines: {
     position: 'absolute',
