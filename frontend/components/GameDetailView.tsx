@@ -271,7 +271,8 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
             style={[
               styles.favoriteButton, 
               item.isFavorite && styles.favoriteButtonActive,
-              focusIndex === 2 && styles.buttonFocused
+              focusIndex === 2 && styles.buttonFocused,
+              isSmallScreen && { right: '43%' }
             ]}
             onPress={() => {
               setFocusIndex(2);
