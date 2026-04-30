@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, Platform, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Animated, { 
@@ -15,15 +15,19 @@ import Animated, {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConsoleItem } from '@/app/(tabs)/index';
 import { soundService } from '@/services/soundService';
+import ControlPrompt from '@/components/ControlPrompt';
+
+
 
 interface Props {
   isVisible: boolean;
   games: ConsoleItem[];
   onClose: () => void;
   onLaunch: (item: ConsoleItem) => void;
+  inputMode?: 'keyboard' | 'gamepad';
 }
 
-export default function RandomSelectorView({ isVisible, games, onClose, onLaunch }: Props) {
+export default function RandomSelectorView({ isVisible, games, onClose, onLaunch, inputMode = 'keyboard' }: Props) {
   const [isRolling, setIsRolling] = useState(false);
   const [displayGames, setDisplayGames] = useState<ConsoleItem[]>([]);
   const [rollCount, setRollCount] = useState(0);
@@ -158,15 +162,13 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
 
           <View style={styles.bottomLeftControls}>
              <TouchableOpacity style={styles.controlBtn} onPress={onClose}>
-                <View style={styles.btnIconCircle}><Text style={styles.btnIconText}>B</Text></View>
-                <Text style={styles.controlBtnLabel}>VOLVER</Text>
+                <ControlPrompt btn="B" label="VOLVER" inputMode={inputMode} />
              </TouchableOpacity>
           </View>
 
           <View style={styles.bottomRightControls}>
              <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn]} onPress={startRoll} disabled={isRolling}>
-                <View style={styles.btnIconCircle}><Text style={styles.btnIconText}>X</Text></View>
-                <Text style={styles.controlBtnLabel}>REINTENTAR</Text>
+                <ControlPrompt btn="X" label="REINTENTAR" inputMode={inputMode} />
              </TouchableOpacity>
 
              <TouchableOpacity 
@@ -174,8 +176,7 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
                onPress={() => displayGames.length > 0 && onLaunch(displayGames[displayGames.length - 2])}
                disabled={isRolling}
              >
-                <View style={[styles.btnIconCircle, { backgroundColor: '#00FFFF' }]}><Text style={[styles.btnIconText, { color: '#000' }]}>A</Text></View>
-                <Text style={styles.controlBtnLabel}>INICIAR</Text>
+                <ControlPrompt btn="A" label="INICIAR" inputMode={inputMode} />
              </TouchableOpacity>
           </View>
         </Animated.View>
@@ -212,7 +213,7 @@ function RollCard({ game, index, rollX, itemSize }: { game: ConsoleItem, index: 
         <Image source={game.image} style={styles.cardImage} contentFit="cover" />
         <View style={styles.cardOverlay}>
           <View style={styles.gameLogoBox}>
-            <MaterialCommunityIcons name="zeta" size={24} color="#FFF" />
+            <MaterialCommunityIcons name="alpha-z-box" size={24} color="#FFF" />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardTitle}>{game.title?.toUpperCase() || 'JUEGO'}</Text>
@@ -353,37 +354,15 @@ const styles = StyleSheet.create({
   controlBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 20,
   },
   primaryBtn: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   confirmBtn: {
-    backgroundColor: 'rgba(0,255,255,0.15)',
+    backgroundColor: 'rgba(0,255,255,0.1)',
   },
-  btnIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  btnIconText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  controlBtnLabel: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  }
 });
