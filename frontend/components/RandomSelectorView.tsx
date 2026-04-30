@@ -64,10 +64,18 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
     setIsRolling(true);
     setRollCount(prev => prev + 1);
     
-    // Create a long list for the conveyor belt
+    // Create a long list for the conveyor belt (avoid consecutive repeats)
     const longList: ConsoleItem[] = [];
+    let lastId = '';
     for (let i = 0; i < 45; i++) {
-      longList.push(available[Math.floor(Math.random() * available.length)]);
+      let pick = available[Math.floor(Math.random() * available.length)];
+      if (available.length > 1) {
+        while (pick.id === lastId) {
+          pick = available[Math.floor(Math.random() * available.length)];
+        }
+      }
+      longList.push(pick);
+      lastId = pick.id;
     }
     setDisplayGames(longList);
     
