@@ -6,7 +6,7 @@
 
 Para poder ejecutar este proyecto.
 
-1. **Instalar Node.js:** Asegurarse de tener Node.js instalado en su sistema.
+1. **Instalar Node.js:** Asegurarse de tener Node.js instalado en su sistema. (v24.12.0 o superior)
 2. **Clonar/Descargar el repositorio:** Obtener el código fuente del proyecto.
 3. **Abrir la terminal en la carpeta correcta:**
    cd frontend
