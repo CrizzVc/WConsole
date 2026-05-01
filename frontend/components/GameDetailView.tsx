@@ -65,14 +65,15 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         }
 
         if (isEditModalVisible) {
+          const isGame = (editData.type || item?.type) !== 'media' && (editData.type || item?.type) !== 'web';
           if (e.key === 'ArrowDown') {
-            if (editModalFocusIndex === 2) setEditModalFocusIndex(3);
+            if (editModalFocusIndex === 2) setEditModalFocusIndex(isGame ? 3 : 10);
             else if (editModalFocusIndex >= 3 && editModalFocusIndex <= 9) setEditModalFocusIndex(10);
             else if (editModalFocusIndex === 14) setEditModalFocusIndex(16);
             else if (editModalFocusIndex >= 15 && editModalFocusIndex <= 17) {} // Do nothing
             else setEditModalFocusIndex(prev => Math.min(prev + 1, 17));
           } else if (e.key === 'ArrowUp') {
-            if (editModalFocusIndex === 10) setEditModalFocusIndex(3);
+            if (editModalFocusIndex === 10) setEditModalFocusIndex(isGame ? 3 : 2);
             else if (editModalFocusIndex >= 3 && editModalFocusIndex <= 9) setEditModalFocusIndex(2);
             else if (editModalFocusIndex >= 15 && editModalFocusIndex <= 17) setEditModalFocusIndex(14);
             else setEditModalFocusIndex(prev => Math.max(prev - 1, 0));
@@ -482,36 +483,40 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                 onChangeText={(text) => setEditData({ ...editData, title: text })}
               />
 
-              <Text style={styles.label}>Plataforma</Text>
-              <View style={{ marginBottom: 20 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
-                  {[
-                    { id: 'PC', icon: 'microsoft-windows' },
-                    { id: 'PS5', icon: 'sony-playstation' },
-                    { id: 'Xbox', icon: 'microsoft-xbox' },
-                    { id: 'Switch', icon: 'nintendo-switch' },
-                    { id: 'Steam', icon: 'steam' },
-                    { id: 'EA', icon: 'alpha-e-box' },
-                    { id: 'Epic', icon: 'alpha-e-circle' }
-                  ].map((plat, idx) => {
-                     const focusIdx = 3 + idx;
-                     return (
-                      <TouchableOpacity
-                        key={plat.id}
-                        style={[
-                          styles.platformBtn,
-                          editData.platform === plat.id && styles.platformBtnActive,
-                          editModalFocusIndex === focusIdx && styles.buttonFocused
-                        ]}
-                        onPress={() => setEditData({ ...editData, platform: plat.id })}
-                      >
-                        <MaterialCommunityIcons name={plat.icon as any} size={20} color={editData.platform === plat.id ? '#000' : '#FFF'} />
-                        <Text style={[styles.platformBtnText, editData.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
-                      </TouchableOpacity>
-                     );
-                  })}
-                </ScrollView>
-              </View>
+              {((editData.type || item?.type) !== 'media' && (editData.type || item?.type) !== 'web') && (
+                <>
+                  <Text style={styles.label}>Plataforma</Text>
+                  <View style={{ marginBottom: 20 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
+                      {[
+                        { id: 'PC', icon: 'microsoft-windows' },
+                        { id: 'PS5', icon: 'sony-playstation' },
+                        { id: 'Xbox', icon: 'microsoft-xbox' },
+                        { id: 'Switch', icon: 'nintendo-switch' },
+                        { id: 'Steam', icon: 'steam' },
+                        { id: 'EA', icon: 'alpha-e-box' },
+                        { id: 'Epic', icon: 'alpha-e-circle' }
+                      ].map((plat, idx) => {
+                         const focusIdx = 3 + idx;
+                         return (
+                          <TouchableOpacity
+                            key={plat.id}
+                            style={[
+                              styles.platformBtn,
+                              editData.platform === plat.id && styles.platformBtnActive,
+                              editModalFocusIndex === focusIdx && styles.buttonFocused
+                            ]}
+                            onPress={() => setEditData({ ...editData, platform: plat.id })}
+                          >
+                            <MaterialCommunityIcons name={plat.icon as any} size={20} color={editData.platform === plat.id ? '#000' : '#FFF'} />
+                            <Text style={[styles.platformBtnText, editData.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
+                          </TouchableOpacity>
+                         );
+                      })}
+                    </ScrollView>
+                  </View>
+                </>
+              )}
 
               <Text style={styles.label}>Descripción</Text>
               <TextInput

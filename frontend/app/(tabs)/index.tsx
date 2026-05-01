@@ -514,7 +514,7 @@ export default function ConsoleHome() {
             setAddModalVisible(false);
           } else if (e.key === 'ArrowDown') {
             if (addModalFocusIndex === 0) setAddModalFocusIndex(1);
-            else if (addModalFocusIndex >= 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(4);
+            else if (addModalFocusIndex >= 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(newApp.type === 'game' ? 4 : 11);
             else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) setAddModalFocusIndex(11);
             else if (addModalFocusIndex === 11) setAddModalFocusIndex(12);
             else if (addModalFocusIndex === 12) setAddModalFocusIndex(14); // Save
@@ -522,7 +522,7 @@ export default function ConsoleHome() {
           } else if (e.key === 'ArrowUp') {
             if (addModalFocusIndex === 14 || addModalFocusIndex === 13) setAddModalFocusIndex(12);
             else if (addModalFocusIndex === 12) setAddModalFocusIndex(11);
-            else if (addModalFocusIndex === 11) setAddModalFocusIndex(4);
+            else if (addModalFocusIndex === 11) setAddModalFocusIndex(newApp.type === 'game' ? 4 : 1);
             else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) setAddModalFocusIndex(1);
             else if (addModalFocusIndex >= 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(0);
           } else if (e.key === 'ArrowRight') {
@@ -536,8 +536,8 @@ export default function ConsoleHome() {
           } else if (e.key === 'Enter') {
             if (addModalFocusIndex === 0) addModalTitleRef.current?.focus();
             else if (addModalFocusIndex === 1) setNewApp({ ...newApp, type: 'game' });
-            else if (addModalFocusIndex === 2) setNewApp({ ...newApp, type: 'media' });
-            else if (addModalFocusIndex === 3) setNewApp({ ...newApp, type: 'web' });
+            else if (addModalFocusIndex === 2) setNewApp({ ...newApp, type: 'media', platform: '' });
+            else if (addModalFocusIndex === 3) setNewApp({ ...newApp, type: 'web', platform: '' });
             else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) {
               const platforms = ['PC', 'PS5', 'Xbox', 'Switch', 'Steam', 'EA', 'Epic'];
               setNewApp({ ...newApp, platform: platforms[addModalFocusIndex - 4] });
@@ -1582,47 +1582,49 @@ export default function ConsoleHome() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.typeBtn, newApp.type === 'media' && styles.typeBtnActive, addModalFocusIndex === 2 && styles.buttonFocused]}
-                onPress={() => setNewApp({ ...newApp, type: 'media' })}
+                onPress={() => setNewApp({ ...newApp, type: 'media', platform: '' })}
               >
                 <Text style={styles.typeBtnText}>Media</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.typeBtn, newApp.type === 'web' && styles.typeBtnActive, addModalFocusIndex === 3 && styles.buttonFocused]}
-                onPress={() => setNewApp({ ...newApp, type: 'web' })}
+                onPress={() => setNewApp({ ...newApp, type: 'web', platform: '' })}
               >
                 <Text style={styles.typeBtnText}>Web</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={{ marginBottom: 15 }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
-                {[
-                  { id: 'PC', icon: 'microsoft-windows' },
-                  { id: 'PS5', icon: 'sony-playstation' },
-                  { id: 'Xbox', icon: 'microsoft-xbox' },
-                  { id: 'Switch', icon: 'nintendo-switch' },
-                  { id: 'Steam', icon: 'steam' },
-                  { id: 'EA', icon: 'alpha-e-box' },
-                  { id: 'Epic', icon: 'alpha-e-circle' }
-                ].map((plat, idx) => {
-                  const focusIdx = 4 + idx;
-                  return (
-                    <TouchableOpacity
-                      key={plat.id}
-                      style={[
-                        styles.platformBtn,
-                        newApp.platform === plat.id && styles.platformBtnActive,
-                        addModalFocusIndex === focusIdx && styles.buttonFocused
-                      ]}
-                      onPress={() => setNewApp({ ...newApp, platform: plat.id })}
-                    >
-                      <MaterialCommunityIcons name={plat.icon as any} size={20} color={newApp.platform === plat.id ? '#000' : '#FFF'} />
-                      <Text style={[styles.platformBtnText, newApp.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+            {newApp.type === 'game' && (
+              <View style={{ marginBottom: 15 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
+                  {[
+                    { id: 'PC', icon: 'microsoft-windows' },
+                    { id: 'PS5', icon: 'sony-playstation' },
+                    { id: 'Xbox', icon: 'microsoft-xbox' },
+                    { id: 'Switch', icon: 'nintendo-switch' },
+                    { id: 'Steam', icon: 'steam' },
+                    { id: 'EA', icon: 'alpha-e-box' },
+                    { id: 'Epic', icon: 'alpha-e-circle' }
+                  ].map((plat, idx) => {
+                    const focusIdx = 4 + idx;
+                    return (
+                      <TouchableOpacity
+                        key={plat.id}
+                        style={[
+                          styles.platformBtn,
+                          newApp.platform === plat.id && styles.platformBtnActive,
+                          addModalFocusIndex === focusIdx && styles.buttonFocused
+                        ]}
+                        onPress={() => setNewApp({ ...newApp, platform: plat.id })}
+                      >
+                        <MaterialCommunityIcons name={plat.icon as any} size={20} color={newApp.platform === plat.id ? '#000' : '#FFF'} />
+                        <Text style={[styles.platformBtnText, newApp.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             {newApp.type === 'web' ? (
               <TextInput
