@@ -974,9 +974,12 @@ export default function ConsoleHome() {
           </>
         )}
       </View>
-      {/* OVERLAY PARA LEGIBILIDAD (Solo si hay fondo) */}
-      {currentBg && (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.5)' }]} />
+      {/* OVERLAY PARA LEGIBILIDAD (Solo si hay fondo o estamos en Biblioteca) */}
+      {(currentBg || activeTab === 'Biblioteca') && (
+        <View style={[
+          StyleSheet.absoluteFillObject, 
+          { backgroundColor: activeTab === 'Biblioteca' ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.5)' }
+        ]} />
       )}
       {/* HEADER */}
       <View style={styles.header}>
