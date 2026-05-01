@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, useWindowDimensions, Platform, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
   withSpring,
   runOnJS,
   interpolate,
@@ -31,7 +31,7 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
   const [isRolling, setIsRolling] = useState(false);
   const [displayGames, setDisplayGames] = useState<ConsoleItem[]>([]);
   const [rollCount, setRollCount] = useState(0);
-  
+
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
   const rollX = useSharedValue(0);
@@ -64,10 +64,10 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
   const startRoll = useCallback(() => {
     const available = games.filter(g => !g.isFolder && !g.isGrid && g.id !== '1' && g.id !== 'last_played');
     if (available.length === 0 || isRolling) return;
-    
+
     setIsRolling(true);
     setRollCount(prev => prev + 1);
-    
+
     // Create a long list for the conveyor belt (avoid consecutive repeats)
     const longList: ConsoleItem[] = [];
     let lastId = '';
@@ -82,15 +82,15 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
       lastId = pick.id;
     }
     setDisplayGames(longList);
-    
+
     rollX.value = 0;
 
     // Land on the penultimate item
     const targetIndex = longList.length - 2;
     const targetOffset = -targetIndex * ITEM_SIZE;
 
-    rollX.value = withTiming(targetOffset, { 
-      duration: 3800, 
+    rollX.value = withTiming(targetOffset, {
+      duration: 3800,
       easing: Easing.bezier(0.15, 0, 0, 1)
     }, (finished) => {
       if (finished) {
@@ -103,7 +103,7 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
   useEffect(() => {
     const handleKeyDown = (e: any) => {
       if (!isVisible) return;
-      
+
       if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
         onClose();
       } else if (e.key === 'Enter' || e.key === 'a' || e.key === 'A') {
@@ -136,48 +136,48 @@ export default function RandomSelectorView({ isVisible, games, onClose, onLaunch
     <Modal visible={isVisible} transparent animationType="none">
       <View style={styles.container}>
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-        
+
         <Animated.View style={[styles.content, animatedStyle]}>
           <View style={styles.topHeader}>
             <View style={styles.slantedTag}>
-              <Text style={styles.tagLabel}>AMBIENTACIÓN</Text>
-              <Text style={styles.tagSubLabel}>BACKGROUND</Text>
-              <Text style={styles.tagNumber}>{rollCount.toString().padStart(2, '0')}</Text>
+              <Text style={styles.tagLabel}>TU JUEGO</Text>
+              <Text style={styles.tagSubLabel}>ALEATORIO ES...</Text>
+              <MaterialCommunityIcons name="dice-multiple" size={40} color="#000" style={{ marginTop: 2 }} />
             </View>
           </View>
 
           <View style={styles.cardsViewPort}>
             <Animated.View style={[styles.rollWrapper, rollWrapperStyle]}>
               {displayGames.map((game, index) => (
-                <RollCard 
-                  key={game.id + index} 
-                  game={game} 
-                  index={index} 
-                  rollX={rollX} 
-                  itemSize={ITEM_SIZE} 
+                <RollCard
+                  key={game.id + index}
+                  game={game}
+                  index={index}
+                  rollX={rollX}
+                  itemSize={ITEM_SIZE}
                 />
               ))}
             </Animated.View>
           </View>
 
           <View style={styles.bottomLeftControls}>
-             <TouchableOpacity style={styles.controlBtn} onPress={onClose}>
-                <ControlPrompt btn="B" label="VOLVER" inputMode={inputMode} />
-             </TouchableOpacity>
+            <TouchableOpacity style={styles.controlBtn} onPress={onClose}>
+              <ControlPrompt btn="B" label="VOLVER" inputMode={inputMode} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.bottomRightControls}>
-             <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn]} onPress={startRoll} disabled={isRolling}>
-                <ControlPrompt btn="X" label="REINTENTAR" inputMode={inputMode} />
-             </TouchableOpacity>
+            <TouchableOpacity style={[styles.controlBtn, styles.primaryBtn]} onPress={startRoll} disabled={isRolling}>
+              <ControlPrompt btn="X" label="REINTENTAR" inputMode={inputMode} />
+            </TouchableOpacity>
 
-             <TouchableOpacity 
-               style={[styles.controlBtn, styles.confirmBtn]} 
-               onPress={() => displayGames.length > 0 && onLaunch(displayGames[displayGames.length - 2])}
-               disabled={isRolling}
-             >
-                <ControlPrompt btn="A" label="INICIAR" inputMode={inputMode} />
-             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.controlBtn, styles.confirmBtn]}
+              onPress={() => displayGames.length > 0 && onLaunch(displayGames[displayGames.length - 2])}
+              disabled={isRolling}
+            >
+              <ControlPrompt btn="A" label="INICIAR" inputMode={inputMode} />
+            </TouchableOpacity>
           </View>
         </Animated.View>
       </View>
@@ -207,13 +207,25 @@ function RollCard({ game, index, rollX, itemSize }: { game: ConsoleItem, index: 
     };
   });
 
+  const platformIcons: Record<string, string> = {
+    'PC': 'microsoft-windows',
+    'PS5': 'sony-playstation',
+    'Xbox': 'microsoft-xbox',
+    'Switch': 'nintendo-switch',
+    'Steam': 'steam',
+    'EA': 'alpha-e-box',
+    'Epic': 'alpha-e-circle',
+  };
+  const platform = game.platform;
+  const iconName = (platform && platformIcons[platform]) || 'alpha-z-box';
+
   return (
     <Animated.View style={[styles.cardWrapper, animatedStyle]}>
       <View style={styles.cardSlant}>
         <Image source={game.image} style={styles.cardImage} contentFit="cover" />
         <View style={styles.cardOverlay}>
           <View style={styles.gameLogoBox}>
-            <MaterialCommunityIcons name="alpha-z-box" size={24} color="#FFF" />
+            <MaterialCommunityIcons name={iconName as any} size={24} color="#FFF" />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardTitle}>{game.title?.toUpperCase() || 'JUEGO'}</Text>
@@ -248,7 +260,7 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   slantedTag: {
-    backgroundColor: '#CCFF00', 
+    backgroundColor: '#CCFF00',
     padding: 12,
     transform: [{ skewX: '-15deg' }],
     width: 120,

@@ -43,6 +43,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
         backgroundImage: item.backgroundImage?.uri?.startsWith('local-file://') ? item.backgroundImage.uri.replace('local-file://', '') : (item.backgroundImage?.uri?.startsWith('http') ? item.backgroundImage.uri : undefined),
         video: item.video?.uri?.startsWith('local-file://') ? item.video.uri.replace('local-file://', '') : (item.video?.uri?.startsWith('http') ? item.video.uri : undefined),
         youtubeId: item.youtubeId,
+        platform: item.platform,
       };
 
       setEditData(initialData);
@@ -65,25 +66,38 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
         if (isEditModalVisible) {
           if (e.key === 'ArrowDown') {
-            setEditModalFocusIndex(prev => Math.min(prev + 1, 10));
+            if (editModalFocusIndex === 2) setEditModalFocusIndex(3);
+            else if (editModalFocusIndex >= 3 && editModalFocusIndex <= 9) setEditModalFocusIndex(10);
+            else if (editModalFocusIndex === 14) setEditModalFocusIndex(16);
+            else if (editModalFocusIndex >= 15 && editModalFocusIndex <= 17) {} // Do nothing
+            else setEditModalFocusIndex(prev => Math.min(prev + 1, 17));
           } else if (e.key === 'ArrowUp') {
-            setEditModalFocusIndex(prev => Math.max(prev - 1, 0));
-          } else if (e.key === 'ArrowRight' && editModalFocusIndex >= 8) {
-            setEditModalFocusIndex(prev => Math.min(prev + 1, 10));
-          } else if (e.key === 'ArrowLeft' && editModalFocusIndex >= 9) {
-            setEditModalFocusIndex(prev => Math.max(prev - 1, 8));
+            if (editModalFocusIndex === 10) setEditModalFocusIndex(3);
+            else if (editModalFocusIndex >= 3 && editModalFocusIndex <= 9) setEditModalFocusIndex(2);
+            else if (editModalFocusIndex >= 15 && editModalFocusIndex <= 17) setEditModalFocusIndex(14);
+            else setEditModalFocusIndex(prev => Math.max(prev - 1, 0));
+          } else if (e.key === 'ArrowRight') {
+            if (editModalFocusIndex >= 3 && editModalFocusIndex < 9) setEditModalFocusIndex(prev => prev + 1);
+            else if (editModalFocusIndex >= 15 && editModalFocusIndex < 17) setEditModalFocusIndex(prev => prev + 1);
+          } else if (e.key === 'ArrowLeft') {
+            if (editModalFocusIndex > 3 && editModalFocusIndex <= 9) setEditModalFocusIndex(prev => prev - 1);
+            else if (editModalFocusIndex > 15 && editModalFocusIndex <= 17) setEditModalFocusIndex(prev => prev - 1);
           } else if (e.key === 'Enter') {
             if (editModalFocusIndex === 0) handleSyncIGDB();
             else if (editModalFocusIndex === 1) handleSyncSteamGrid();
             else if (editModalFocusIndex === 2) editTitleRef.current?.focus();
-            else if (editModalFocusIndex === 3) editDescRef.current?.focus();
-            else if (editModalFocusIndex === 4) handleSelectImage('image');
-            else if (editModalFocusIndex === 5) handleSelectImage('logo');
-            else if (editModalFocusIndex === 6) handleSelectImage('backgroundImage');
-            else if (editModalFocusIndex === 7) handleSelectVideo();
-            else if (editModalFocusIndex === 8) handleDeleteApp();
-            else if (editModalFocusIndex === 9) setEditModalVisible(false);
-            else if (editModalFocusIndex === 10) handleSaveEdit();
+            else if (editModalFocusIndex >= 3 && editModalFocusIndex <= 9) {
+               const platforms = ['PC', 'PS5', 'Xbox', 'Switch', 'Steam', 'EA', 'Epic'];
+               setEditData({ ...editData, platform: platforms[editModalFocusIndex - 3] });
+            }
+            else if (editModalFocusIndex === 10) editDescRef.current?.focus();
+            else if (editModalFocusIndex === 11) handleSelectImage('image');
+            else if (editModalFocusIndex === 12) handleSelectImage('logo');
+            else if (editModalFocusIndex === 13) handleSelectImage('backgroundImage');
+            else if (editModalFocusIndex === 14) handleSelectVideo();
+            else if (editModalFocusIndex === 15) handleDeleteApp();
+            else if (editModalFocusIndex === 16) setEditModalVisible(false);
+            else if (editModalFocusIndex === 17) handleSaveEdit();
           } else if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
             setEditModalVisible(false);
           }
@@ -306,18 +320,33 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
               
               <View style={styles.infoPanel}>
-                {isSmallScreen ? (
-                   (editData.logo || item.logo) ? (
-                    <Image 
-                      source={editData.logo ? (editData.logo.startsWith('http') ? { uri: editData.logo } : { uri: `local-file:///${editData.logo}` }) : item.logo} 
-                      style={[styles.detailLogo, { width: '100%', height: 120, marginBottom: 20 }]} 
-                    />
-                  ) : (
-                    <Text style={styles.detailTitle} numberOfLines={2}>{item.title}</Text>
-                  )
-                ) : (
-                  <Text style={styles.detailTitle} numberOfLines={2}>{item.title}</Text>
-                )}
+                {(editData.logo || item.logo) ? (
+  <Image 
+    source={editData.logo ? (editData.logo.startsWith('http') ? { uri: editData.logo } : { uri: `local-file:///${editData.logo}` }) : item.logo} 
+    style={[styles.detailLogo, { width: '100%', height: 120, marginBottom: 20 }]} 
+  />
+) : (
+  <Text style={styles.detailTitle} numberOfLines={2}>{item.title}</Text>
+)}
+
+{(item.platform) && (() => {
+  const platformIcons: Record<string, string> = {
+    'PC': 'microsoft-windows',
+    'PS5': 'sony-playstation',
+    'Xbox': 'microsoft-xbox',
+    'Switch': 'nintendo-switch',
+    'Steam': 'steam',
+    'EA': 'alpha-e-box',
+    'Epic': 'alpha-e-circle',
+  };
+  const iconName = item.platform ? platformIcons[item.platform] : undefined;
+  return (
+    <View style={styles.platformBadge}>
+      {iconName && <MaterialCommunityIcons name={iconName as any} size={14} color="#00FFFF" style={{ marginRight: 6 }} />}
+      <Text style={styles.platformText}>{item.platform}</Text>
+    </View>
+  );
+})()}
                 
                 <View style={styles.ratingContainer}>
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -453,17 +482,48 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
                 onChangeText={(text) => setEditData({ ...editData, title: text })}
               />
 
+              <Text style={styles.label}>Plataforma</Text>
+              <View style={{ marginBottom: 20 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
+                  {[
+                    { id: 'PC', icon: 'microsoft-windows' },
+                    { id: 'PS5', icon: 'sony-playstation' },
+                    { id: 'Xbox', icon: 'microsoft-xbox' },
+                    { id: 'Switch', icon: 'nintendo-switch' },
+                    { id: 'Steam', icon: 'steam' },
+                    { id: 'EA', icon: 'alpha-e-box' },
+                    { id: 'Epic', icon: 'alpha-e-circle' }
+                  ].map((plat, idx) => {
+                     const focusIdx = 3 + idx;
+                     return (
+                      <TouchableOpacity
+                        key={plat.id}
+                        style={[
+                          styles.platformBtn,
+                          editData.platform === plat.id && styles.platformBtnActive,
+                          editModalFocusIndex === focusIdx && styles.buttonFocused
+                        ]}
+                        onPress={() => setEditData({ ...editData, platform: plat.id })}
+                      >
+                        <MaterialCommunityIcons name={plat.icon as any} size={20} color={editData.platform === plat.id ? '#000' : '#FFF'} />
+                        <Text style={[styles.platformBtnText, editData.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
+                      </TouchableOpacity>
+                     );
+                  })}
+                </ScrollView>
+              </View>
+
               <Text style={styles.label}>Descripción</Text>
               <TextInput
                 ref={editDescRef}
-                style={[styles.input, { height: 80 }, editModalFocusIndex === 3 && styles.inputFocused]}
+                style={[styles.input, { height: 80 }, editModalFocusIndex === 10 && styles.inputFocused]}
                 multiline
                 value={editData.description}
                 onChangeText={(text) => setEditData({ ...editData, description: text })}
               />
 
               <TouchableOpacity 
-                style={[styles.fileBtn, editModalFocusIndex === 4 && styles.buttonFocused]} 
+                style={[styles.fileBtn, editModalFocusIndex === 11 && styles.buttonFocused]} 
                 onPress={() => handleSelectImage('image')}
               >
                 <Ionicons name="image" size={20} color="#FFF" />
@@ -471,7 +531,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.fileBtn, editModalFocusIndex === 5 && styles.buttonFocused]} 
+                style={[styles.fileBtn, editModalFocusIndex === 12 && styles.buttonFocused]} 
                 onPress={() => handleSelectImage('logo')}
               >
                 <Ionicons name="color-palette" size={20} color="#FFF" />
@@ -479,7 +539,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.fileBtn, editModalFocusIndex === 6 && styles.buttonFocused]} 
+                style={[styles.fileBtn, editModalFocusIndex === 13 && styles.buttonFocused]} 
                 onPress={() => handleSelectImage('backgroundImage')}
               >
                 <Ionicons name="images" size={20} color="#FFF" />
@@ -487,7 +547,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={[styles.fileBtn, editModalFocusIndex === 7 && styles.buttonFocused]} 
+                style={[styles.fileBtn, editModalFocusIndex === 14 && styles.buttonFocused]} 
                 onPress={handleSelectVideo}
               >
                 <Ionicons name="videocam" size={20} color="#FFF" />
@@ -497,7 +557,7 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
 
             <View style={styles.modalActions}>
               <TouchableOpacity 
-                style={[styles.deleteBtn, editModalFocusIndex === 8 && styles.buttonFocused]} 
+                style={[styles.deleteBtn, editModalFocusIndex === 15 && styles.buttonFocused]} 
                 onPress={handleDeleteApp}
               >
                 <Ionicons name="trash-outline" size={20} color="#FF2D55" />
@@ -505,13 +565,13 @@ const GameDetailView: React.FC<GameDetailViewProps> = ({ isVisible, item, onClos
               
               <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <TouchableOpacity 
-                  style={[styles.cancelBtn, editModalFocusIndex === 9 && styles.buttonFocused]} 
+                  style={[styles.cancelBtn, editModalFocusIndex === 16 && styles.buttonFocused]} 
                   onPress={() => setEditModalVisible(false)}
                 >
                   <Text style={styles.cancelBtnText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.saveBtn, editModalFocusIndex === 10 && styles.buttonFocused]} 
+                  style={[styles.saveBtn, editModalFocusIndex === 17 && styles.buttonFocused]} 
                   onPress={handleSaveEdit}
                 >
                   <Text style={styles.saveBtnText}>Guardar</Text>
@@ -620,6 +680,25 @@ const styles = StyleSheet.create({
     marginBottom: 8, 
     letterSpacing: 0.5 
   },
+  platformBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)'
+  },
+  platformText: {
+    color: '#00FFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1
+  },
   ratingContainer: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -705,6 +784,11 @@ const styles = StyleSheet.create({
     borderColor: '#00FFFF',
     backgroundColor: '#0A0A0A',
   },
+  platformScrollContent: { gap: 10, paddingVertical: 5 },
+  platformBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#444' },
+  platformBtnActive: { borderColor: '#00FFFF', backgroundColor: '#00FFFF' },
+  platformBtnText: { color: '#FFF', fontWeight: 'bold', marginLeft: 6, fontSize: 12 },
+  platformBtnTextActive: { color: '#000' },
   fileBtn: { backgroundColor: '#2C2C2E', padding: 18, borderRadius: 12, flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   fileBtnText: { color: '#FFF', marginLeft: 12, fontSize: 15, fontWeight: '500' },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 },

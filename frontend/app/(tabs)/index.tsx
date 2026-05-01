@@ -34,6 +34,7 @@ export interface ConsoleItem {
   lastPlayed?: number;
   youtubeId?: string;
   type?: 'game' | 'media' | 'web';
+  platform?: string;
 }
 
 const DATA_GAMES: ConsoleItem[] = [
@@ -83,7 +84,7 @@ export default function ConsoleHome() {
 
   // States for Add App Modal
   const [isAddModalVisible, setAddModalVisible] = useState(false);
-  const [newApp, setNewApp] = useState({ title: '', path: '', image: '', type: 'game' });
+  const [newApp, setNewApp] = useState({ title: '', path: '', image: '', type: 'game', platform: '' });
   const [isSaving, setIsSaving] = useState(false);
 
   // States for Game Detail View
@@ -99,6 +100,7 @@ export default function ConsoleHome() {
 
   const addModalTitleRef = useRef<TextInput>(null);
   const addModalPathRef = useRef<TextInput>(null);
+  const addModalPlatformRef = useRef<TextInput>(null);
   const settingsNameRef = useRef<TextInput>(null);
 
   const [isFavoritesVisible, setFavoritesVisible] = useState(false);
@@ -119,7 +121,7 @@ export default function ConsoleHome() {
 
   useEffect(() => {
     setShowTrailer(false);
-    
+
     // Si la reproducción automática está desactivada en ajustes, no mostrar trailer
     const autoPlay = activeUser?.settings?.autoPlayVideo !== false; // Por defecto true
     if (!autoPlay) return;
@@ -153,7 +155,7 @@ export default function ConsoleHome() {
 
 
   const libraryData = games.filter(g => !g.isFolder && !g.isGrid && g.id !== '1' && g.id !== 'last_played');
-  
+
   const GAMES_LIMIT = 10;
   let currentData = activeTab === 'Games' ? games : (activeTab === 'Media' ? media : (activeTab === 'Biblioteca' ? libraryData : []));
 
@@ -189,20 +191,20 @@ export default function ConsoleHome() {
         const formatApp = (app: any) => ({
           id: app.id,
           title: app.title,
-          time: app.type === 'game' ? 'Juego' : (app.type === 'web' ? 'Web App' : 'Media'),
-          image: app.imageBase64 
-            ? { uri: app.imageBase64 } 
-            : (app.image 
-                ? (app.image.startsWith('http') ? { uri: app.image } : { uri: `local-file:///${app.image.replace(/\\/g, '/')}` }) 
-                : (app.type === 'web' ? require('@/assets/images/web_default.jpg') : require('@/assets/images/Home.gif'))
-              ),
+          time: app.type === 'game' ? (app.platform || 'Juego') : (app.type === 'web' ? 'Web App' : 'Media'),
+          image: app.imageBase64
+            ? { uri: app.imageBase64 }
+            : (app.image
+              ? (app.image.startsWith('http') ? { uri: app.image } : { uri: `local-file:///${app.image.replace(/\\/g, '/')}` })
+              : (app.type === 'web' ? require('@/assets/images/web_default.jpg') : require('@/assets/images/Home.gif'))
+            ),
           logo: app.logoBase64 ? { uri: app.logoBase64 } : (app.logo ? (app.logo.startsWith('http') ? { uri: app.logo } : { uri: `local-file:///${app.logo.replace(/\\/g, '/')}` }) : null),
-          backgroundImage: app.backgroundImageBase64 
-            ? { uri: app.backgroundImageBase64 } 
-            : (app.backgroundImage 
-                ? (app.backgroundImage.startsWith('http') ? { uri: app.backgroundImage } : { uri: `local-file:///${app.backgroundImage.replace(/\\/g, '/')}` }) 
-                : require('@/assets/images/FondoDefault.png')
-              ),
+          backgroundImage: app.backgroundImageBase64
+            ? { uri: app.backgroundImageBase64 }
+            : (app.backgroundImage
+              ? (app.backgroundImage.startsWith('http') ? { uri: app.backgroundImage } : { uri: `local-file:///${app.backgroundImage.replace(/\\/g, '/')}` })
+              : require('@/assets/images/FondoDefault.png')
+            ),
           video: app.video ? (app.video.startsWith('http') ? { uri: app.video } : { uri: `local-file:///${app.video.replace(/\\/g, '/')}` }) : null,
           path: app.path,
           description: app.description,
@@ -210,7 +212,8 @@ export default function ConsoleHome() {
           isFavorite: app.isFavorite,
           lastPlayed: app.lastPlayed,
           youtubeId: app.youtubeId,
-          type: app.type
+          type: app.type,
+          platform: app.platform
         });
 
         const gamesList = (data.games || []).map(formatApp);
@@ -270,9 +273,9 @@ export default function ConsoleHome() {
 
         const dispatch = (key: string) => {
           setInputMode('gamepad');
-          const event = new KeyboardEvent('keydown', { 
-            key, 
-            bubbles: true, 
+          const event = new KeyboardEvent('keydown', {
+            key,
+            bubbles: true,
             cancelable: true,
             keyCode: key === 'Enter' ? 13 : (key === 'ArrowRight' ? 39 : (key === 'ArrowLeft' ? 37 : (key === 'ArrowUp' ? 38 : (key === 'ArrowDown' ? 40 : 0))))
           });
@@ -299,10 +302,10 @@ export default function ConsoleHome() {
           const val = gp.axes[axisIdx];
           const prevVal = prevAxesRef.current[axisIdx] || 0;
           const threshold = 0.5;
-          
+
           if (val > threshold && prevVal <= threshold) dispatch(posKey);
           else if (val < -threshold && prevVal >= -threshold) dispatch(negKey);
-          
+
           prevAxesRef.current[axisIdx] = val;
         };
 
@@ -312,9 +315,9 @@ export default function ConsoleHome() {
         // Update Gamepad State for Widgets
         if (lastGpId.current !== gp.id) {
           lastGpId.current = gp.id;
-          setGamepadInfo({ 
-            connected: true, 
-            name: gp.id, 
+          setGamepadInfo({
+            connected: true,
+            name: gp.id,
             battery: 0.75 // Simulated battery for UI demonstration
           });
         }
@@ -383,10 +386,10 @@ export default function ConsoleHome() {
     // Si la interfaz se siente bloqueada, un toque general la devuelve al carrusel
     // pero solo si no estamos navegando fluidamente o hay algún modal abierto
     if (!isUserModalVisible && !isAddModalVisible && !isDetailVisible && !isSettingsVisible && !isFavoritesVisible) {
-       // if we click on background, maybe ensure focus area is valid
-       if (focusArea === 'header_user' || focusArea === 'footer') {
-          setFocusArea('main_carousel');
-       }
+      // if we click on background, maybe ensure focus area is valid
+      if (focusArea === 'header_user' || focusArea === 'footer') {
+        setFocusArea('main_carousel');
+      }
     }
   };
 
@@ -492,8 +495,8 @@ export default function ConsoleHome() {
                 else if (settingsFocusIndex === 1) settingsNameRef.current?.focus();
               } else {
                 if (settingsFocusIndex === 0) {
-                   updateUser({ 
-                    settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) } 
+                  updateUser({
+                    settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) }
                   });
                 } else if (settingsFocusIndex === 1) {
                   setSettingsVisible(false);
@@ -510,29 +513,42 @@ export default function ConsoleHome() {
           if (e.key === 'Escape' || e.key === 'b' || e.key === 'B') {
             setAddModalVisible(false);
           } else if (e.key === 'ArrowDown') {
-             setAddModalFocusIndex(prev => Math.min(prev + 1, 7));
+            if (addModalFocusIndex === 0) setAddModalFocusIndex(1);
+            else if (addModalFocusIndex >= 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(4);
+            else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) setAddModalFocusIndex(11);
+            else if (addModalFocusIndex === 11) setAddModalFocusIndex(12);
+            else if (addModalFocusIndex === 12) setAddModalFocusIndex(14); // Save
+            else if (addModalFocusIndex === 13) setAddModalFocusIndex(14);
           } else if (e.key === 'ArrowUp') {
-             setAddModalFocusIndex(prev => Math.max(prev - 1, 0));
-          } else if (e.key === 'ArrowRight' && (addModalFocusIndex >= 1 && addModalFocusIndex <= 3)) {
-             setAddModalFocusIndex(prev => Math.min(prev + 1, 3));
-          } else if (e.key === 'ArrowLeft' && (addModalFocusIndex >= 1 && addModalFocusIndex <= 3)) {
-             setAddModalFocusIndex(prev => Math.max(prev - 1, 1));
-          } else if (e.key === 'ArrowRight' && (addModalFocusIndex === 6)) {
-             setAddModalFocusIndex(7);
-          } else if (e.key === 'ArrowLeft' && (addModalFocusIndex === 7)) {
-             setAddModalFocusIndex(6);
+            if (addModalFocusIndex === 14 || addModalFocusIndex === 13) setAddModalFocusIndex(12);
+            else if (addModalFocusIndex === 12) setAddModalFocusIndex(11);
+            else if (addModalFocusIndex === 11) setAddModalFocusIndex(4);
+            else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) setAddModalFocusIndex(1);
+            else if (addModalFocusIndex >= 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(0);
+          } else if (e.key === 'ArrowRight') {
+            if (addModalFocusIndex >= 1 && addModalFocusIndex < 3) setAddModalFocusIndex(prev => prev + 1);
+            else if (addModalFocusIndex >= 4 && addModalFocusIndex < 10) setAddModalFocusIndex(prev => prev + 1);
+            else if (addModalFocusIndex === 13) setAddModalFocusIndex(14);
+          } else if (e.key === 'ArrowLeft') {
+            if (addModalFocusIndex > 1 && addModalFocusIndex <= 3) setAddModalFocusIndex(prev => prev - 1);
+            else if (addModalFocusIndex > 4 && addModalFocusIndex <= 10) setAddModalFocusIndex(prev => prev - 1);
+            else if (addModalFocusIndex === 14) setAddModalFocusIndex(13);
           } else if (e.key === 'Enter') {
-             if (addModalFocusIndex === 0) addModalTitleRef.current?.focus();
-             else if (addModalFocusIndex === 1) setNewApp({ ...newApp, type: 'game' });
-             else if (addModalFocusIndex === 2) setNewApp({ ...newApp, type: 'media' });
-             else if (addModalFocusIndex === 3) setNewApp({ ...newApp, type: 'web' });
-             else if (addModalFocusIndex === 4) {
-               if (newApp.type === 'web') addModalPathRef.current?.focus();
-               else handleSelectExecutable();
-             }
-             else if (addModalFocusIndex === 5) handleSelectImage();
-             else if (addModalFocusIndex === 6) setAddModalVisible(false);
-             else if (addModalFocusIndex === 7) handleSaveApp();
+            if (addModalFocusIndex === 0) addModalTitleRef.current?.focus();
+            else if (addModalFocusIndex === 1) setNewApp({ ...newApp, type: 'game' });
+            else if (addModalFocusIndex === 2) setNewApp({ ...newApp, type: 'media' });
+            else if (addModalFocusIndex === 3) setNewApp({ ...newApp, type: 'web' });
+            else if (addModalFocusIndex >= 4 && addModalFocusIndex <= 10) {
+              const platforms = ['PC', 'PS5', 'Xbox', 'Switch', 'Steam', 'EA', 'Epic'];
+              setNewApp({ ...newApp, platform: platforms[addModalFocusIndex - 4] });
+            }
+            else if (addModalFocusIndex === 11) {
+              if (newApp.type === 'web') addModalPathRef.current?.focus();
+              else handleSelectExecutable();
+            }
+            else if (addModalFocusIndex === 12) handleSelectImage();
+            else if (addModalFocusIndex === 13) setAddModalVisible(false);
+            else if (addModalFocusIndex === 14) handleSaveApp();
           }
           return;
         }
@@ -600,7 +616,7 @@ export default function ConsoleHome() {
             mainVerticalScrollRef.current?.scrollTo({ y: 550, animated: true });
           } else if (focusArea === 'bottom_news') {
             const nextIdx = focusIndex + 1;
-            const maxIdx = news.length; 
+            const maxIdx = news.length;
             if (nextIdx <= maxIdx) {
               setFocusIndex(nextIdx);
               mainVerticalScrollRef.current?.scrollTo({ y: 350 + nextIdx * 140, animated: true });
@@ -863,7 +879,7 @@ export default function ConsoleHome() {
       await (window as any).electronAPI.saveApp(appToSave);
       setIsSaving(false);
       setAddModalVisible(false);
-      setNewApp({ title: '', path: '', image: '', type: 'game' });
+      setNewApp({ title: '', path: '', image: '', type: 'game', platform: '' });
       loadApps(); // Reload DB to update list
     } else {
       alert('Por favor completa el título y la ruta del ejecutable.');
@@ -1131,163 +1147,163 @@ export default function ConsoleHome() {
                     );
                   }
 
-                if (item.isGrid) {
-                  return (
-                    <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                      <View style={[styles.folderContainer, cardContainerStyle]}>
-                        <View style={styles.folderHeader}>
-                          <MaterialCommunityIcons name="view-grid" size={16} color="#00FFFF" />
-                          <Text style={styles.folderTitle}> Favorite Media</Text>
-                        </View>
-                        <View style={styles.folderContent}>
-                          {(() => {
-                            const favs = media.filter(m => m.isFavorite);
-                            if (favs.length === 0) {
-                              return (
-                                <View style={styles.folderEmpty}>
-                                  <Ionicons name="apps-outline" size={30} color="rgba(0,255,255,0.2)" />
-                                </View>
-                              );
-                            }
-                            if (favs.length === 1) {
-                              return <Image source={favs[0].image} style={styles.folderImgFull} />;
-                            }
-                            if (favs.length === 2) {
-                              return (
-                                <View style={styles.folderCol}>
-                                  <Image source={favs[0].image} style={styles.folderImgWide} />
-                                  <Image source={favs[1].image} style={styles.folderImgWide} />
-                                </View>
-                              );
-                            }
-                            if (favs.length === 3) {
+                  if (item.isGrid) {
+                    return (
+                      <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                        <View style={[styles.folderContainer, cardContainerStyle]}>
+                          <View style={styles.folderHeader}>
+                            <MaterialCommunityIcons name="view-grid" size={16} color="#00FFFF" />
+                            <Text style={styles.folderTitle}> Favorite Media</Text>
+                          </View>
+                          <View style={styles.folderContent}>
+                            {(() => {
+                              const favs = media.filter(m => m.isFavorite);
+                              if (favs.length === 0) {
+                                return (
+                                  <View style={styles.folderEmpty}>
+                                    <Ionicons name="apps-outline" size={30} color="rgba(0,255,255,0.2)" />
+                                  </View>
+                                );
+                              }
+                              if (favs.length === 1) {
+                                return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                              }
+                              if (favs.length === 2) {
+                                return (
+                                  <View style={styles.folderCol}>
+                                    <Image source={favs[0].image} style={styles.folderImgWide} />
+                                    <Image source={favs[1].image} style={styles.folderImgWide} />
+                                  </View>
+                                );
+                              }
+                              if (favs.length === 3) {
+                                return (
+                                  <View style={styles.folderCol}>
+                                    <View style={styles.folderRow}>
+                                      <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                      <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                    </View>
+                                    <Image source={favs[2].image} style={styles.folderImgWide} />
+                                  </View>
+                                );
+                              }
+                              // 4 or more
                               return (
                                 <View style={styles.folderCol}>
                                   <View style={styles.folderRow}>
                                     <Image source={favs[0].image} style={styles.folderImgSmall} />
                                     <Image source={favs[1].image} style={styles.folderImgSmall} />
                                   </View>
-                                  <Image source={favs[2].image} style={styles.folderImgWide} />
+                                  <View style={styles.folderRow}>
+                                    <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                    <Image source={favs[3].image} style={styles.folderImgSmall} />
+                                  </View>
                                 </View>
                               );
-                            }
-                            // 4 or more
-                            return (
-                              <View style={styles.folderCol}>
-                                <View style={styles.folderRow}>
-                                  <Image source={favs[0].image} style={styles.folderImgSmall} />
-                                  <Image source={favs[1].image} style={styles.folderImgSmall} />
-                                </View>
-                                <View style={styles.folderRow}>
-                                  <Image source={favs[2].image} style={styles.folderImgSmall} />
-                                  <Image source={favs[3].image} style={styles.folderImgSmall} />
-                                </View>
-                              </View>
-                            );
-                          })()}
+                            })()}
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }
+                      </TouchableOpacity>
+                    );
+                  }
 
-                if (item.isFolder) {
-                  return (
-                    <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                      <View style={[styles.folderContainer, cardContainerStyle]}>
-                        <View style={styles.folderHeader}>
-                          <Ionicons name="heart" size={16} color="#FF2D55" />
-                          <Text style={styles.folderTitle}> Favorite Games</Text>
-                        </View>
-                        <View style={styles.folderContent}>
-                          {(() => {
-                            const favs = games.filter(g => g.isFavorite);
-                            if (favs.length === 0) {
-                              return (
-                                <View style={styles.folderEmpty}>
-                                  <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
-                                </View>
-                              );
-                            }
-                            if (favs.length === 1) {
-                              return <Image source={favs[0].image} style={styles.folderImgFull} />;
-                            }
-                            if (favs.length === 2) {
-                              return (
-                                <View style={styles.folderCol}>
-                                  <Image source={favs[0].image} style={styles.folderImgWide} />
-                                  <Image source={favs[1].image} style={styles.folderImgWide} />
-                                </View>
-                              );
-                            }
-                            if (favs.length === 3) {
+                  if (item.isFolder) {
+                    return (
+                      <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                        <View style={[styles.folderContainer, cardContainerStyle]}>
+                          <View style={styles.folderHeader}>
+                            <Ionicons name="heart" size={16} color="#FF2D55" />
+                            <Text style={styles.folderTitle}> Favorite Games</Text>
+                          </View>
+                          <View style={styles.folderContent}>
+                            {(() => {
+                              const favs = games.filter(g => g.isFavorite);
+                              if (favs.length === 0) {
+                                return (
+                                  <View style={styles.folderEmpty}>
+                                    <Ionicons name="star-outline" size={30} color="rgba(255,255,255,0.2)" />
+                                  </View>
+                                );
+                              }
+                              if (favs.length === 1) {
+                                return <Image source={favs[0].image} style={styles.folderImgFull} />;
+                              }
+                              if (favs.length === 2) {
+                                return (
+                                  <View style={styles.folderCol}>
+                                    <Image source={favs[0].image} style={styles.folderImgWide} />
+                                    <Image source={favs[1].image} style={styles.folderImgWide} />
+                                  </View>
+                                );
+                              }
+                              if (favs.length === 3) {
+                                return (
+                                  <View style={styles.folderCol}>
+                                    <View style={styles.folderRow}>
+                                      <Image source={favs[0].image} style={styles.folderImgSmall} />
+                                      <Image source={favs[1].image} style={styles.folderImgSmall} />
+                                    </View>
+                                    <Image source={favs[2].image} style={styles.folderImgWide} />
+                                  </View>
+                                );
+                              }
+                              // 4 or more
                               return (
                                 <View style={styles.folderCol}>
                                   <View style={styles.folderRow}>
                                     <Image source={favs[0].image} style={styles.folderImgSmall} />
                                     <Image source={favs[1].image} style={styles.folderImgSmall} />
                                   </View>
-                                  <Image source={favs[2].image} style={styles.folderImgWide} />
+                                  <View style={styles.folderRow}>
+                                    <Image source={favs[2].image} style={styles.folderImgSmall} />
+                                    <Image source={favs[3].image} style={styles.folderImgSmall} />
+                                  </View>
                                 </View>
                               );
-                            }
-                            // 4 or more
-                            return (
-                              <View style={styles.folderCol}>
-                                <View style={styles.folderRow}>
-                                  <Image source={favs[0].image} style={styles.folderImgSmall} />
-                                  <Image source={favs[1].image} style={styles.folderImgSmall} />
-                                </View>
-                                <View style={styles.folderRow}>
-                                  <Image source={favs[2].image} style={styles.folderImgSmall} />
-                                  <Image source={favs[3].image} style={styles.folderImgSmall} />
-                                </View>
-                              </View>
-                            );
-                          })()}
+                            })()}
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }
+                      </TouchableOpacity>
+                    );
+                  }
 
-                if (item.isLastPlayed && !lastPlayedGame) {
+                  if (item.isLastPlayed && !lastPlayedGame) {
+                    return (
+                      <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
+                        <View style={[...cardContainerStyle, { overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center' }]}>
+                          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                          <MaterialCommunityIcons
+                            name="history"
+                            size={Math.round(60 * scale)}
+                            color={isActive ? "#00FFFF" : "rgba(255,255,255,0.2)"}
+                          />
+                          <View style={{ position: 'absolute', bottom: 15, width: '100%', alignItems: 'center' }}>
+                            <Text style={{
+                              color: isActive ? "#00FFFF" : "rgba(255,255,255,0.4)",
+                              fontSize: Math.round(10 * scale),
+                              fontWeight: 'bold',
+                              letterSpacing: 1
+                            }}>
+                              SIN ACTIVIDAD
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }
+
                   return (
                     <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                      <View style={[...cardContainerStyle, { overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center' }]}>
-                        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-                        <MaterialCommunityIcons 
-                          name="history" 
-                          size={Math.round(60 * scale)} 
-                          color={isActive ? "#00FFFF" : "rgba(255,255,255,0.2)"} 
-                        />
-                        <View style={{ position: 'absolute', bottom: 15, width: '100%', alignItems: 'center' }}>
-                          <Text style={{ 
-                            color: isActive ? "#00FFFF" : "rgba(255,255,255,0.4)", 
-                            fontSize: Math.round(10 * scale), 
-                            fontWeight: 'bold',
-                            letterSpacing: 1
-                          }}>
-                            SIN ACTIVIDAD
-                          </Text>
-                        </View>
-                      </View>
+                      <Image
+                        source={item.isLastPlayed ? (lastPlayedGame?.image ?? item.image) : item.image}
+                        style={[styles.cardImage, cardContainerStyle]}
+                      />
                     </TouchableOpacity>
                   );
-                }
-
-                return (
-                  <TouchableOpacity key={item.id} onPress={() => handleAppPress(index, item)} activeOpacity={0.9}>
-                    <Image
-                      source={item.isLastPlayed ? (lastPlayedGame?.image ?? item.image) : item.image}
-                      style={[styles.cardImage, cardContainerStyle]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
+                })}
+              </ScrollView>
+            )}
+          </View>
 
           <View style={styles.activeSubtitleContainer}>
             <Text style={styles.activeSubtitle}>
@@ -1337,10 +1353,10 @@ export default function ConsoleHome() {
                   <Text style={styles.widgetTitle}>CAPTURAS</Text>
                 </View>
                 <View style={styles.widgetContent}>
-                   <View style={styles.screenshotPreview}>
-                      <Ionicons name="images" size={30} color="rgba(255,255,255,0.1)" />
-                   </View>
-                   <Text style={styles.widgetSubText}>12 NUEVAS CAPTURAS</Text>
+                  <View style={styles.screenshotPreview}>
+                    <Ionicons name="images" size={30} color="rgba(255,255,255,0.1)" />
+                  </View>
+                  <Text style={styles.widgetSubText}>12 NUEVAS CAPTURAS</Text>
                 </View>
               </BlurView>
             </TouchableOpacity>
@@ -1359,11 +1375,11 @@ export default function ConsoleHome() {
                   <Text style={styles.widgetTitle}>ALMACENAMIENTO</Text>
                 </View>
                 <View style={styles.widgetContent}>
-                   <View style={styles.storageBarContainer}>
-                      <View style={[styles.storageBar, { width: `${storageInfo.percent || 10}%` }]} />
-                   </View>
-                   <Text style={styles.widgetMainText}>{storageInfo.percent || '---'}% LLENO</Text>
-                   <Text style={styles.widgetSubText}>{storageInfo.freeGB || '---'} GB DISPONIBLES</Text>
+                  <View style={styles.storageBarContainer}>
+                    <View style={[styles.storageBar, { width: `${storageInfo.percent || 10}%` }]} />
+                  </View>
+                  <Text style={styles.widgetMainText}>{storageInfo.percent || '---'}% LLENO</Text>
+                  <Text style={styles.widgetSubText}>{storageInfo.freeGB || '---'} GB DISPONIBLES</Text>
                 </View>
               </BlurView>
             </TouchableOpacity>
@@ -1429,27 +1445,27 @@ export default function ConsoleHome() {
 
           {/* RANDOM GAME CARD ON THE RIGHT */}
           <View style={styles.randomCardContainer}>
-             <TouchableOpacity
-               style={[
-                 styles.randomCard,
-                 (focusArea === 'bottom_news' && focusIndex === -1) && styles.itemFocused
-               ]}
-               onPress={() => setRandomSelectorVisible(true)}
-               activeOpacity={0.8}
-             >
-               <BlurView intensity={30} tint="dark" style={styles.randomCardBlur}>
-                 <View style={styles.randomCardContent}>
-                   <MaterialCommunityIcons name="dice-multiple" size={60} color="#CCFF00" />
-                   <View style={styles.randomCardText}>
-                     <Text style={styles.randomCardTitle}>SELECCIONAR JUEGO ALEATORIO</Text>
-                     <Text style={styles.randomCardSub}>¿NO SABES QUÉ JUGAR? PRUEBA TU SUERTE</Text>
-                   </View>
-                 </View>
-                 
-                 {/* Decorative Slant */}
-                 <View style={styles.randomCardSlantDecor} />
-               </BlurView>
-             </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.randomCard,
+                (focusArea === 'bottom_news' && focusIndex === -1) && styles.itemFocused
+              ]}
+              onPress={() => setRandomSelectorVisible(true)}
+              activeOpacity={0.8}
+            >
+              <BlurView intensity={30} tint="dark" style={styles.randomCardBlur}>
+                <View style={styles.randomCardContent}>
+                  <MaterialCommunityIcons name="dice-multiple" size={60} color="#CCFF00" />
+                  <View style={styles.randomCardText}>
+                    <Text style={styles.randomCardTitle}>SELECCIONAR JUEGO ALEATORIO</Text>
+                    <Text style={styles.randomCardSub}>¿NO SABES QUÉ JUGAR? PRUEBA TU SUERTE</Text>
+                  </View>
+                </View>
+
+                {/* Decorative Slant */}
+                <View style={styles.randomCardSlantDecor} />
+              </BlurView>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -1578,18 +1594,48 @@ export default function ConsoleHome() {
               </TouchableOpacity>
             </View>
 
+            <View style={{ marginBottom: 15 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.platformScrollContent}>
+                {[
+                  { id: 'PC', icon: 'microsoft-windows' },
+                  { id: 'PS5', icon: 'sony-playstation' },
+                  { id: 'Xbox', icon: 'microsoft-xbox' },
+                  { id: 'Switch', icon: 'nintendo-switch' },
+                  { id: 'Steam', icon: 'steam' },
+                  { id: 'EA', icon: 'alpha-e-box' },
+                  { id: 'Epic', icon: 'alpha-e-circle' }
+                ].map((plat, idx) => {
+                  const focusIdx = 4 + idx;
+                  return (
+                    <TouchableOpacity
+                      key={plat.id}
+                      style={[
+                        styles.platformBtn,
+                        newApp.platform === plat.id && styles.platformBtnActive,
+                        addModalFocusIndex === focusIdx && styles.buttonFocused
+                      ]}
+                      onPress={() => setNewApp({ ...newApp, platform: plat.id })}
+                    >
+                      <MaterialCommunityIcons name={plat.icon as any} size={20} color={newApp.platform === plat.id ? '#000' : '#FFF'} />
+                      <Text style={[styles.platformBtnText, newApp.platform === plat.id && styles.platformBtnTextActive]}>{plat.id}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             {newApp.type === 'web' ? (
               <TextInput
                 ref={addModalPathRef}
-                style={[styles.input, addModalFocusIndex === 4 && styles.inputFocused]}
+                style={[styles.input, addModalFocusIndex === 11 && styles.inputFocused]}
                 placeholder="URL (https://...)"
                 placeholderTextColor="#888"
                 value={newApp.path}
                 onChangeText={(text) => setNewApp({ ...newApp, path: text })}
               />
             ) : (
-              <TouchableOpacity 
-                style={[styles.fileBtn, addModalFocusIndex === 4 && styles.buttonFocused]} 
+              <TouchableOpacity
+                style={[styles.fileBtn, addModalFocusIndex === 11 && styles.buttonFocused]}
                 onPress={handleSelectExecutable}
               >
                 <Ionicons name="folder-open" size={20} color="#FFF" />
@@ -1599,8 +1645,8 @@ export default function ConsoleHome() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity 
-              style={[styles.fileBtn, addModalFocusIndex === 5 && styles.buttonFocused]} 
+            <TouchableOpacity
+              style={[styles.fileBtn, addModalFocusIndex === 12 && styles.buttonFocused]}
               onPress={handleSelectImage}
             >
               <Ionicons name="image" size={20} color="#FFF" />
@@ -1611,14 +1657,14 @@ export default function ConsoleHome() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }, addModalFocusIndex === 6 && styles.buttonFocused]}
+                style={[styles.cancelBtn, isSaving && { opacity: 0.5 }, addModalFocusIndex === 13 && styles.buttonFocused]}
                 onPress={() => !isSaving && setAddModalVisible(false)}
                 disabled={isSaving}
               >
                 <Text style={styles.cancelBtnText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }, addModalFocusIndex === 7 && styles.buttonFocused]}
+                style={[styles.saveBtn, isSaving && { backgroundColor: '#444' }, addModalFocusIndex === 14 && styles.buttonFocused]}
                 onPress={handleSaveApp}
                 disabled={isSaving}
               >
@@ -1638,8 +1684,8 @@ export default function ConsoleHome() {
               Selecciona una imagen personalizada para el fondo de tu pantalla principal.
             </Text>
 
-            <TouchableOpacity 
-              style={[styles.fileBtn, bgModalFocusIndex === 0 && styles.buttonFocused]} 
+            <TouchableOpacity
+              style={[styles.fileBtn, bgModalFocusIndex === 0 && styles.buttonFocused]}
               onPress={handleSelectHomeBg}
             >
               <Ionicons name="image" size={24} color="#FFF" />
@@ -1661,8 +1707,8 @@ export default function ConsoleHome() {
             )}
 
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={[styles.cancelBtn, bgModalFocusIndex === (homeBackground ? 2 : 1) && styles.buttonFocused]} 
+              <TouchableOpacity
+                style={[styles.cancelBtn, bgModalFocusIndex === (homeBackground ? 2 : 1) && styles.buttonFocused]}
                 onPress={() => setHomeBgModalVisible(false)}
               >
                 <Text style={styles.cancelBtnText}>Cerrar</Text>
@@ -1680,13 +1726,13 @@ export default function ConsoleHome() {
       <Modal visible={isSettingsVisible} transparent animationType="slide">
         <View style={styles.settingsOverlay}>
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          
+
           <View style={styles.settingsContainer}>
             {/* Sidebar Navigation */}
             <View style={styles.settingsSidebar}>
               <Text style={styles.settingsSidebarTitle}>Ajustes</Text>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.settingsTab, settingsTab === 'profile' && styles.settingsTabActive, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 0) && styles.buttonFocused]}
                 onPress={() => setSettingsTab('profile')}
               >
@@ -1694,7 +1740,7 @@ export default function ConsoleHome() {
                 <Text style={[styles.settingsTabText, settingsTab === 'profile' && styles.settingsTabTextActive]}>Perfil</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.settingsTab, settingsTab === 'home' && styles.settingsTabActive, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 1) && styles.buttonFocused]}
                 onPress={() => setSettingsTab('home')}
               >
@@ -1703,8 +1749,8 @@ export default function ConsoleHome() {
               </TouchableOpacity>
 
               <View style={{ flex: 1 }} />
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[styles.settingsSidebarClose, (settingsFocusArea === 'sidebar' && settingsFocusIndex === 2) && styles.buttonFocused]}
                 onPress={() => {
                   setSettingsVisible(false);
@@ -1721,13 +1767,13 @@ export default function ConsoleHome() {
               {settingsTab === 'profile' ? (
                 <ScrollView contentContainerStyle={styles.settingsScrollContentInner}>
                   <Text style={styles.settingsMainTitle}>Configuración de Perfil</Text>
-                  
+
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingsLabel}>Foto de Perfil</Text>
-                    <TouchableOpacity 
-                      onPress={handleSelectAvatar} 
+                    <TouchableOpacity
+                      onPress={handleSelectAvatar}
                       style={[
-                        styles.settingsAvatarContainer, 
+                        styles.settingsAvatarContainer,
                         { borderColor: activeUser?.color || '#00FFFF' },
                         (settingsFocusArea === 'content' && settingsFocusIndex === 0) && styles.buttonFocused
                       ]}
@@ -1777,24 +1823,24 @@ export default function ConsoleHome() {
               ) : (
                 <ScrollView contentContainerStyle={styles.settingsScrollContentInner}>
                   <Text style={styles.settingsMainTitle}>Configuración de Inicio</Text>
-                  
+
                   <View style={styles.settingsOptionRow}>
                     <View style={styles.settingsOptionInfo}>
                       <Text style={styles.settingsOptionLabel}>Reproducción automática de video</Text>
                       <Text style={styles.settingsOptionDesc}>Reproduce trailers de juegos automáticamente cuando seleccionas un juego en el row principal.</Text>
                     </View>
-                    <TouchableOpacity 
-                      onPress={() => updateUser({ 
-                        settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) } 
+                    <TouchableOpacity
+                      onPress={() => updateUser({
+                        settings: { ...activeUser?.settings, autoPlayVideo: !(activeUser?.settings?.autoPlayVideo !== false) }
                       })}
                       style={[
-                        styles.toggleContainer, 
+                        styles.toggleContainer,
                         (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleContainerActive,
                         (settingsFocusArea === 'content' && settingsFocusIndex === 0) && styles.buttonFocused
                       ]}
                     >
                       <View style={[
-                        styles.toggleCircle, 
+                        styles.toggleCircle,
                         (activeUser?.settings?.autoPlayVideo !== false) && styles.toggleCircleActive
                       ]} />
                     </TouchableOpacity>
@@ -1802,7 +1848,7 @@ export default function ConsoleHome() {
 
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingsLabel}>Fondo de Pantalla</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[styles.settingsSecondaryBtn, (settingsFocusArea === 'content' && settingsFocusIndex === 1) && styles.buttonFocused]}
                       onPress={() => {
                         setSettingsVisible(false);
@@ -1976,8 +2022,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 0,
   },
-  newsContainerVertical: { 
-    width: '40%', 
+  newsContainerVertical: {
+    width: '40%',
   },
   randomCardContainer: {
     flex: 1,
@@ -2089,11 +2135,7 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     alignItems: 'center',
   },
-  newsLoadingText: {
-    color: '#666',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
+
   backToTopCardVertical: {
     width: '100%',
     height: 80,
@@ -2112,19 +2154,19 @@ const styles = StyleSheet.create({
     marginTop: 5,
     letterSpacing: 2
   },
-  footer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 40, 
-    height: 70, 
-    borderTopWidth: 1, 
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    height: 70,
+    borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   footerLeft: { flexDirection: 'row', alignItems: 'center' },
   footerRight: { flexDirection: 'row', alignItems: 'center' },
-  
+
   footerBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   footerHint: { color: '#FFF', fontSize: 14, fontWeight: '500' },
   btnIcon: { color: '#00FFFF', fontWeight: 'bold' },
@@ -2141,6 +2183,11 @@ const styles = StyleSheet.create({
   typeBtn: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#111', borderRadius: 8, marginHorizontal: 5, borderWidth: 1, borderColor: '#444' },
   typeBtnActive: { borderColor: '#00FFFF', backgroundColor: '#333' },
   typeBtnText: { color: '#FFF', fontWeight: 'bold' },
+  platformScrollContent: { gap: 10, paddingVertical: 5 },
+  platformBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#444' },
+  platformBtnActive: { borderColor: '#00FFFF', backgroundColor: '#00FFFF' },
+  platformBtnText: { color: '#FFF', fontWeight: 'bold', marginLeft: 6, fontSize: 12 },
+  platformBtnTextActive: { color: '#000' },
   fileBtn: { backgroundColor: '#333', padding: 15, borderRadius: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   fileBtnText: { color: '#FFF', marginLeft: 10, flex: 1 },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
