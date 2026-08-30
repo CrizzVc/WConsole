@@ -1,0 +1,1304 @@
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Linking } from 'react-native';
+import { Image } from 'expo-image';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ConsoleItem } from '../app/(tabs)/index';
+import { getGameActionLabel } from '../services/steamLaunchService';
+
+interface GameInfoPanelProps {
+  activeItem: ConsoleItem;
+  activeIndex: number;
+  lastPlayedGame: ConsoleItem | null;
+  focusArea: string;
+  gamePanelFocusIndex: number;
+  setGamePanelFocusIndex: (index: number) => void;
+  setFocusArea: (area: any) => void;
+  handleLaunchApp: (item: ConsoleItem) => void;
+  setSelectedItem: (item: ConsoleItem) => void;
+  setDetailVisible: (visible: boolean) => void;
+  steamMedia: any[];
+  mediaLoading: boolean;
+  setSelectedMediaIndex: (index: number | null) => void;
+  steamNews: any[];
+  newsLoading: boolean;
+  activeUser: any;
+  windowWidth: number;
+  windowHeight: number;
+
+  // Animated Styles passed from parent
+  gameInfoPanelStyle: any;
+  spacerStyle: any;
+  infoCardsStyle: any;
+  topPanelStyle: any;
+  installedSteamAppIds?: Set<string> | null;
+}
+
+export const GameInfoPanel = ({
+  activeItem,
+  activeIndex,
+  lastPlayedGame,
+  focusArea,
+  gamePanelFocusIndex,
+  setGamePanelFocusIndex,
+  setFocusArea,
+  handleLaunchApp,
+  setSelectedItem,
+  setDetailVisible,
+  steamMedia,
+  mediaLoading,
+  setSelectedMediaIndex,
+  steamNews,
+  newsLoading,
+  activeUser,
+  windowWidth,
+  windowHeight,
+  gameInfoPanelStyle,
+  spacerStyle,
+  infoCardsStyle,
+  topPanelStyle,
+  installedSteamAppIds = null,
+}: GameInfoPanelProps) => {
+  const displayTitle = activeItem?.isLastPlayed ? (lastPlayedGame ? lastPlayedGame.title : 'Último jugado') : activeItem?.title;
+  const displayLogo = activeItem?.isLastPlayed ? lastPlayedGame?.logo : activeItem?.logo;
+  const canPlay = activeItem && !activeItem.isFolder && !activeItem.isGrid && activeItem.id !== '1' && activeItem.id !== 'more_library';
+  const isSpotify = activeItem?.title?.toLowerCase()?.includes('spotify');
+  const isMediaSection = activeItem?.type === 'media' || activeItem?.type === 'web' || isSpotify;
+
+  const mediaScrollRef = React.useRef<ScrollView>(null);
+  const newsScrollRef = React.useRef<ScrollView>(null);
+  const scrollDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (focusArea !== 'game_panel') return;
+
+    if (scrollDebounceRef.current) {
+      clearTimeout(scrollDebounceRef.current);
+    }
+
+    scrollDebounceRef.current = setTimeout(() => {
+      if (gamePanelFocusIndex >= 100) {
+        const idx = gamePanelFocusIndex - 100;
+        mediaScrollRef.current?.scrollTo({ x: idx * 516, animated: true });
+      } else if (gamePanelFocusIndex >= 4) {
+        const idx = gamePanelFocusIndex - 4;
+        newsScrollRef.current?.scrollTo({ x: idx * 336, animated: true });
+      }
+    }, 80);
+
+    return () => {
+      if (scrollDebounceRef.current) {
+        clearTimeout(scrollDebounceRef.current);
+      }
+    };
+  }, [gamePanelFocusIndex, focusArea]);
+
+  const buttonLabel = getGameActionLabel(activeItem, installedSteamAppIds);
+
+  // Scale factor: 1.0 at 1080p, shrinks proportionally for smaller screens
+  const scale = Math.min(Math.max(windowHeight / 1080, 0.6), 1);
+  const s = (v: number) => Math.round(v * scale);
+
+  return (
+    <Animated.View style={[styles.gameInfoPanel, gameInfoPanelStyle, { paddingLeft: s(150) }]}>
+      <Animated.View style={spacerStyle}>
+        <Animated.View style={topPanelStyle}>
+          {/* Logo or title */}
+          {displayLogo ? (
+            <Animated.View key={`logo-${activeIndex}`} entering={FadeInDown.duration(400)}>
+              <Image source={displayLogo} style={[styles.gameLogo, { width: s(400), height: s(220) }]} contentFit="contain" />
+            </Animated.View>
+          ) : (
+            <Animated.View key={`title-${activeIndex}`} entering={FadeInDown.duration(400)}>
+              {activeItem?.id !== '1' && (
+                <Text style={[styles.gameTitle, { fontSize: s(38) }]} numberOfLines={2}>{displayTitle}</Text>
+              )}
+            </Animated.View>
+          )}
+
+          {/* Action Buttons */}
+          {canPlay && (
+            <Animated.View key={`buttons-${activeIndex}`} entering={FadeInDown.duration(400).delay(60)} style={styles.actionButtons}>
+              <TouchableOpacity
+                id="play-btn"
+                style={[
+                  styles.playBtn,
+                  {
+                    width: s(320),
+                    height: s(65),
+                    paddingHorizontal: s(52),
+                    paddingVertical: s(14),
+                    borderRadius: s(28),
+                  },
+                  focusArea === 'game_panel' && gamePanelFocusIndex === 0 && styles.playBtnFocused
+                ]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (activeItem) { handleLaunchApp(activeItem); }
+                }}
+              >
+                <Text style={[
+                  styles.playBtnText,
+                  { fontSize: s(25) },
+                  focusArea === 'game_panel' && gamePanelFocusIndex === 0 && styles.playBtnTextFocused
+                ]}>
+                  {buttonLabel}
+                </Text>
+
+                {Platform.OS === 'web' &&
+                  focusArea === 'game_panel' &&
+                  gamePanelFocusIndex === 0 && (
+                    <>
+                      <style>
+                        {`
+                          /* --- ANIMACIÓN 1: BORDE GIRATORIO CON BASE VISIBLE --- */
+                        @keyframes wc-spin-border {
+                          0%   { transform: translate(-50%, -50%) rotate(0deg); }
+                          100% { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        .wc-spinning-container2 {
+                          position: absolute;
+                          top: -5px;
+                          left: -6px;
+                          right: -6px;
+                          bottom: -5px;
+                          border-radius: 32px;
+                          z-index: 9999;
+                          overflow: visible !important;
+
+                          /* ─── AQUÍ OCURRE LA MAGIA DE LA MÁSCARA CUADRADA ─── */
+                          /* 1. Definimos dos capas de gradientes básicos como máscaras */
+                          -webkit-mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+                          mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+
+                          /* 2. El primer gradiente se expande hasta el borde (border-box). 
+                                El segundo gradiente se queda solo en el contenido (padding-box) */
+                          -webkit-mask-clip: border-box, padding-box;
+                          mask-clip: border-box, padding-box;
+
+                          /* 3. ¡RESTAR! Le decimos que excluya la capa del padding-box (el centro).
+                                Nota: Webkit usa 'destination-out' y la propiedad estándar usa 'exclude' */
+                          -webkit-mask-composite: destination-out;
+                          mask-composite: exclude;
+
+                          /* 4. El grosor del anillo se define por el "border" del contenedor */
+                          border: 3px solid transparent; 
+                        }
+
+                        .wc-spinning-inner {
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 300%;
+                          height: 600%;
+                          animation: wc-spin-border 9.8s linear infinite;
+                          
+                          background: conic-gradient(
+                            from 0deg,
+                            rgba(255, 255, 255, 0.15) 0%,
+                            rgba(255, 255, 255, 0.79) 28%,
+                            rgba(180, 210, 255, 0.86) 33%,
+                            rgba(220, 235, 255, 0.95) 48%,
+                            rgba(255, 255, 255, 1.0) 50%,
+                            rgba(223, 248, 182, 0.95) 52%,
+                            rgba(180, 210, 255, 0.88) 57%,
+                            rgba(255, 255, 255, 0.75) 62%,
+                            rgba(255, 255, 255, 0.15) 100%
+                          );
+                          border-radius: 50%;
+                        }
+
+                          /* --- ANIMACIÓN 2: DESTELLO DIAGONAL MÁS LARGO Y SUAVE --- */
+  @keyframes wc-content-shimmer {
+    0% { transform: translate(-160%, -50%) rotate(48deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { opacity: 1; }
+    70% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+    100% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+  }
+  .wc-shimmer-line2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%; 
+    height: 420%; 
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 20%,
+      rgba(255, 255, 255, 0.18) 50%, 
+      rgba(255, 255, 255, 0.01) 80%,
+      transparent 100%
+    );
+    animation: wc-content-shimmer 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  }
+                      `}
+                      </style>
+
+                      <div className="wc-spinning-container2">
+                        {/* El gradiente cónico gira aquí adentro, siendo recortado perfectamente por el padre */}
+                        <div className="wc-spinning-inner" />
+                      </div>
+                    </>
+                  )}
+
+                {/* SHIMMER */}
+                {Platform.OS === 'web' && focusArea === 'game_panel' && gamePanelFocusIndex === 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 1,
+                      right: 1,
+                      bottom: 0,
+                      borderRadius: 30,
+                      zIndex: 5,
+                      overflow: 'hidden',
+                    } as any}
+                    pointerEvents="none"
+                  >
+                    {/* @ts-ignore */}
+                    <div className="wc-shimmer-line2" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                id="more-btn"
+                style={[
+                  styles.moreBtn,
+                  {
+                    width: s(62),
+                    height: s(62),
+                    borderRadius: s(31),
+                  },
+                  focusArea === 'game_panel' && gamePanelFocusIndex === 1 && styles.moreBtnFocused
+                ]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (activeItem) {
+                    const target = activeItem.isLastPlayed ? lastPlayedGame : activeItem;
+                    if (target) {
+                      setSelectedItem(target);
+                      setDetailVisible(true);
+                    } else {
+                      alert('No hay juego reciente');
+                    }
+                  }
+                }}
+              >
+                <Text style={[
+                  styles.moreBtnText,
+                  { fontSize: s(22) },
+                  focusArea === 'game_panel' && gamePanelFocusIndex === 1 && styles.moreBtnTextFocused
+                ]}>···</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      {/* Info Cards (Trophies & Friends) */}
+      {canPlay && (
+        <Animated.View
+          key={`cards-${activeIndex}`}
+          entering={FadeInDown.duration(400).delay(120)}
+          style={[styles.infoCardsRow, infoCardsStyle, { marginTop: s(20) }]}
+        >
+          {/* Trophies Card */}
+          <View
+            style={[
+              styles.infoCard,
+              { padding: s(16), minWidth: s(350), borderRadius: s(16) },
+              focusArea === 'game_panel' &&
+              gamePanelFocusIndex === 2 &&
+              styles.infoCardFocused,
+            ]}
+          >
+            {Platform.OS === 'web' &&
+              focusArea === 'game_panel' &&
+              gamePanelFocusIndex === 2 && (
+                <>
+                  <style>
+                    {`
+                          /* --- ANIMACIÓN 1: BORDE GIRATORIO CON BASE VISIBLE --- */
+                        @keyframes wc-spin-border {
+                          0%   { transform: translate(-50%, -50%) rotate(0deg); }
+                          100% { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        .wc-spinning-container2 {
+                          position: absolute;
+                          top: 0px;
+                          left: 0px;
+                          right: 0px;
+                          bottom: 0px;
+                          border-radius: 15px;
+                          z-index: 9999;
+                          overflow: visible !important;
+
+                          /* ─── AQUÍ OCURRE LA MAGIA DE LA MÁSCARA CUADRADA ─── */
+                          /* 1. Definimos dos capas de gradientes básicos como máscaras */
+                          -webkit-mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+                          mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+
+                          /* 2. El primer gradiente se expande hasta el borde (border-box). 
+                                El segundo gradiente se queda solo en el contenido (padding-box) */
+                          -webkit-mask-clip: border-box, padding-box;
+                          mask-clip: border-box, padding-box;
+
+                          /* 3. ¡RESTAR! Le decimos que excluya la capa del padding-box (el centro).
+                                Nota: Webkit usa 'destination-out' y la propiedad estándar usa 'exclude' */
+                          -webkit-mask-composite: destination-out;
+                          mask-composite: exclude;
+
+                          /* 4. El grosor del anillo se define por el "border" del contenedor */
+                          border: 3px solid transparent; 
+                        }
+
+                        .wc-spinning-inner {
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 300%;
+                          height: 600%;
+                          animation: wc-spin-border 9.8s linear infinite;
+                          
+                          background: conic-gradient(
+                            from 0deg,
+                            rgba(255, 255, 255, 0.15) 0%,
+                            rgba(255, 255, 255, 0.79) 28%,
+                            rgba(180, 210, 255, 0.86) 33%,
+                            rgba(220, 235, 255, 0.95) 48%,
+                            rgba(255, 255, 255, 1.0) 50%,
+                            rgba(223, 248, 182, 0.95) 52%,
+                            rgba(180, 210, 255, 0.88) 57%,
+                            rgba(255, 255, 255, 0.75) 62%,
+                            rgba(255, 255, 255, 0.15) 100%
+                          );
+                          border-radius: 50%;
+                        }
+
+                          /* --- ANIMACIÓN 2: DESTELLO DIAGONAL MÁS LARGO Y SUAVE --- */
+  @keyframes wc-content-shimmer {
+    0% { transform: translate(-160%, -50%) rotate(48deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { opacity: 1; }
+    70% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+    100% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+  }
+  .wc-shimmer-line2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%; 
+    height: 420%; 
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 20%,
+      rgba(255, 255, 255, 0.18) 50%, 
+      rgba(255, 255, 255, 0.01) 80%,
+      transparent 100%
+    );
+    animation: wc-content-shimmer 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  }
+                      `}
+                  </style>
+
+                  <div className="wc-spinning-container2">
+                    {/* El gradiente cónico gira aquí adentro, siendo recortado perfectamente por el padre */}
+                    <div className="wc-spinning-inner" />
+                  </div>
+                </>
+              )}
+
+            {/* SHIMMER */}
+            {Platform.OS === 'web' && focusArea === 'game_panel' && gamePanelFocusIndex === 2 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 1,
+                  right: 1,
+                  bottom: 0,
+                  borderRadius: 15,
+                  zIndex: 5,
+                  overflow: 'hidden',
+                } as any}
+                pointerEvents="none"
+              >
+                {/* @ts-ignore */}
+                <div className="wc-shimmer-line2" />
+              </View>
+            )}
+            {/* DEGRADADO */}
+            {Platform.OS === 'web' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: `
+                    linear-gradient(
+                      90deg,
+                      rgba(207, 241, 253, 0.14) 0%,
+                      rgba(207, 240, 255, 0.06) 50%,
+                      rgba(255,255,255,0.02) 70%,
+                      rgba(255,255,255,0.00) 90%,
+                      rgba(0, 0, 0, 0) 100%
+                    )
+                  `,
+                  pointerEvents: 'none',
+                  borderRadius: 15,
+                  zIndex: 1,
+                  opacity: (focusArea === 'game_panel' && gamePanelFocusIndex === 2) ? 1 : 0,
+                  transition: 'opacity 450ms cubic-bezier(0.22, 1, 0.36, 1)',
+                }}
+              />
+            )}
+
+            {/* CONTENIDO */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: s(12),
+                gap: s(25),
+                zIndex: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Image
+                  source={require('@/assets/images/platino.png')}
+                  style={{
+                    width: s(28),
+                    height: s(28),
+                    resizeMode: 'contain',
+                  }}
+                />
+                <Text style={{ color: '#FFF', fontSize: s(14), fontWeight: 'bold', marginTop: s(15) }}>
+                  1
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Image
+                  source={require('@/assets/images/oro.png')}
+                  style={{
+                    width: s(28),
+                    height: s(28),
+                    resizeMode: 'contain',
+                  }}
+                />
+                <Text style={{ color: '#FFF', fontSize: s(14), fontWeight: 'bold', marginTop: s(15) }}>
+                  3
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Image
+                  source={require('@/assets/images/plata.png')}
+                  style={{
+                    width: s(28),
+                    height: s(28),
+                    resizeMode: 'contain',
+                  }}
+                />
+                <Text style={{ color: '#FFF', fontSize: s(14), fontWeight: 'bold', marginTop: s(15) }}>
+                  16
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Image
+                  source={require('@/assets/images/bronce.png')}
+                  style={{
+                    width: s(28),
+                    height: s(28),
+                    resizeMode: 'contain',
+                  }}
+                />
+                <Text style={{ color: '#FFF', fontSize: s(14), fontWeight: 'bold', marginTop: s(15) }}>
+                  17
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ zIndex: 2 }}>
+              <Text
+                style={{
+                  color: '#FFF',
+                  fontSize: s(16),
+                  fontWeight: 'bold',
+                  marginBottom: s(4),
+                }}
+              >
+                Trofeos
+              </Text>
+
+              <Text style={{ color: '#ddddddff', fontSize: s(17) }}>
+                37 trofeos obtenidos
+              </Text>
+            </View>
+          </View>
+
+          {/* Friends Playing Card */}
+          <View
+            style={[
+              styles.infoCard,
+              { padding: s(16), minWidth: s(350), borderRadius: s(16) },
+              focusArea === 'game_panel' &&
+              gamePanelFocusIndex === 3 &&
+              styles.infoCardFocused,
+            ]}
+          >
+            {Platform.OS === 'web' &&
+              focusArea === 'game_panel' &&
+              gamePanelFocusIndex === 3 && (
+                <>
+                  <style>
+                    {`
+                          /* --- ANIMACIÓN 1: BORDE GIRATORIO CON BASE VISIBLE --- */
+                        @keyframes wc-spin-border {
+                          0%   { transform: translate(-50%, -50%) rotate(0deg); }
+                          100% { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        .wc-spinning-container2 {
+                          position: absolute;
+                          top: 0px;
+                          left: 0px;
+                          right: 0px;
+                          bottom: 0px;
+                          border-radius: 15px;
+                          z-index: 9999;
+                          overflow: visible !important;
+
+                          /* ─── AQUÍ OCURRE LA MAGIA DE LA MÁSCARA CUADRADA ─── */
+                          /* 1. Definimos dos capas de gradientes básicos como máscaras */
+                          -webkit-mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+                          mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+
+                          /* 2. El primer gradiente se expande hasta el borde (border-box). 
+                                El segundo gradiente se queda solo en el contenido (padding-box) */
+                          -webkit-mask-clip: border-box, padding-box;
+                          mask-clip: border-box, padding-box;
+
+                          /* 3. ¡RESTAR! Le decimos que excluya la capa del padding-box (el centro).
+                                Nota: Webkit usa 'destination-out' y la propiedad estándar usa 'exclude' */
+                          -webkit-mask-composite: destination-out;
+                          mask-composite: exclude;
+
+                          /* 4. El grosor del anillo se define por el "border" del contenedor */
+                          border: 3px solid transparent; 
+                        }
+
+                        .wc-spinning-inner {
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 300%;
+                          height: 600%;
+                          animation: wc-spin-border 9.8s linear infinite;
+                          
+                          background: conic-gradient(
+                            from 0deg,
+                            rgba(255, 255, 255, 0.15) 0%,
+                            rgba(255, 255, 255, 0.79) 28%,
+                            rgba(180, 210, 255, 0.86) 33%,
+                            rgba(220, 235, 255, 0.95) 48%,
+                            rgba(255, 255, 255, 1.0) 50%,
+                            rgba(223, 248, 182, 0.95) 52%,
+                            rgba(180, 210, 255, 0.88) 57%,
+                            rgba(255, 255, 255, 0.75) 62%,
+                            rgba(255, 255, 255, 0.15) 100%
+                          );
+                          border-radius: 50%;
+                        }
+
+                          /* --- ANIMACIÓN 2: DESTELLO DIAGONAL MÁS LARGO Y SUAVE --- */
+  @keyframes wc-content-shimmer {
+    0% { transform: translate(-160%, -50%) rotate(48deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { opacity: 1; }
+    70% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+    100% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+  }
+  .wc-shimmer-line2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%; 
+    height: 420%; 
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 20%,
+      rgba(255, 255, 255, 0.18) 50%, 
+      rgba(255, 255, 255, 0.01) 80%,
+      transparent 100%
+    );
+    animation: wc-content-shimmer 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  }
+                      `}
+                  </style>
+
+                  <div className="wc-spinning-container2">
+                    {/* El gradiente cónico gira aquí adentro, siendo recortado perfectamente por el padre */}
+                    <div className="wc-spinning-inner" />
+                  </div>
+                </>
+              )}
+
+            {/* SHIMMER */}
+            {Platform.OS === 'web' && focusArea === 'game_panel' && gamePanelFocusIndex === 3 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 1,
+                  right: 1,
+                  bottom: 0,
+                  borderRadius: 15,
+                  zIndex: 5,
+                  overflow: 'hidden',
+                } as any}
+                pointerEvents="none"
+              >
+                {/* @ts-ignore */}
+                <div className="wc-shimmer-line2" />
+              </View>
+            )}
+            {/* DEGRADADO */}
+            {Platform.OS === 'web' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: `
+                    linear-gradient(
+                      90deg,
+                      rgba(207, 241, 253, 0.14) 0%,
+                      rgba(207, 240, 255, 0.06) 50%,
+                      rgba(255,255,255,0.02) 70%,
+                      rgba(255,255,255,0.00) 90%,
+                      rgba(0, 0, 0, 0) 100%
+                    )
+                  `,
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  borderRadius: 15,
+                  opacity: (focusArea === 'game_panel' && gamePanelFocusIndex === 3) ? 1 : 0,
+                  transition: 'opacity 450ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  backdropFilter: 'blur(2px)',
+                }}
+              />
+            )}
+
+            {/* CONTENIDO */}
+            <View style={{ flexDirection: 'row', marginBottom: s(12), zIndex: 2 }}>
+              <Image
+                source={require('@/assets/images/amigos.png')}
+                style={{
+                  width: s(35),
+                  height: s(35),
+                  resizeMode: 'contain',
+                }}
+              />
+            </View>
+
+            <View style={{ zIndex: 2 }}>
+              <Text
+                style={{
+                  color: '#FFF',
+                  fontSize: s(16),
+                  fontWeight: 'bold',
+                  marginBottom: s(4),
+                }}
+              >
+                Amigos jugando
+              </Text>
+
+              <Text style={{ color: '#ddddddff', fontSize: s(17) }}>
+                5 amigos en línea
+              </Text>
+            </View>
+          </View>
+
+          {/* Music Player Card (only visible on media/spotify) */}
+        </Animated.View>
+      )}
+
+      {/* Phrase for media/spotify items */}
+      {canPlay && isMediaSection && (
+        <Animated.View
+          key={`phrase-${activeIndex}`}
+          entering={FadeInDown.duration(400).delay(120)}
+          style={{ marginTop: s(20), paddingHorizontal: s(50), alignItems: 'flex-start' }}
+        >
+          <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: s(14), fontStyle: 'italic' }}>
+            "La música es el lenguaje universal de la humanidad."
+          </Text>
+        </Animated.View>
+      )}
+
+      {/* Screenshots and Trailers row */}
+      {canPlay && !isMediaSection && (
+        <View style={[styles.newsSectionWrapper, { width: windowWidth }]}>
+          <Text style={{ color: '#FFF', fontSize: s(18), fontWeight: '500', marginBottom: s(16), paddingLeft: s(50) }}>Capturas y tráilers</Text>
+
+          {mediaLoading ? (
+            <View style={[styles.newsLoadingRow, { paddingLeft: s(50) }]}>
+              <MaterialCommunityIcons name="loading" size={16} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.newsEmptyText}>Cargando capturas...</Text>
+            </View>
+          ) : steamMedia.length === 0 ? (
+            <View style={[styles.newsLoadingRow, { paddingLeft: s(50) }]}>
+              <Ionicons name="images-outline" size={14} color="rgba(255,255,255,0.25)" />
+              <Text style={styles.newsEmptyText}>Sin capturas disponibles</Text>
+            </View>
+          ) : (
+            <ScrollView
+              ref={mediaScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.newsScrollContent, { paddingLeft: s(50), paddingRight: s(50) }]}
+            >
+              {steamMedia.map((item, idx) => {
+                const isMediaFocused = focusArea === 'game_panel' && gamePanelFocusIndex === 100 + idx;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.newsCard, { width: s(500), height: s(250) }, isMediaFocused && styles.newsCardFocused]}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setGamePanelFocusIndex(100 + idx);
+                      setSelectedMediaIndex(idx);
+                    }}
+                  >
+
+                    {Platform.OS === 'web' &&
+                      focusArea === 'game_panel' &&
+                      gamePanelFocusIndex === 100 + idx && (
+                        <>
+                          <style>
+                            {`
+                          /* --- ANIMACIÓN 1: BORDE GIRATORIO CON BASE VISIBLE --- */
+                        @keyframes wc-spin-border {
+                          0%   { transform: translate(-50%, -50%) rotate(0deg); }
+                          100% { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        .wc-spinning-container2 {
+                          position: absolute;
+                          top: 0px;
+                          left: 0px;
+                          right: 0px;
+                          bottom: 0px;
+                          border-radius: 8px;
+                          z-index: 9999;
+                          overflow: visible !important;
+
+                          /* ─── AQUÍ OCURRE LA MAGIA DE LA MÁSCARA CUADRADA ─── */
+                          /* 1. Definimos dos capas de gradientes básicos como máscaras */
+                          -webkit-mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+                          mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+
+                          /* 2. El primer gradiente se expande hasta el borde (border-box). 
+                                El segundo gradiente se queda solo en el contenido (padding-box) */
+                          -webkit-mask-clip: border-box, padding-box;
+                          mask-clip: border-box, padding-box;
+
+                          /* 3. ¡RESTAR! Le decimos que excluya la capa del padding-box (el centro).
+                                Nota: Webkit usa 'destination-out' y la propiedad estándar usa 'exclude' */
+                          -webkit-mask-composite: destination-out;
+                          mask-composite: exclude;
+
+                          /* 4. El grosor del anillo se define por el "border" del contenedor */
+                          border: 3px solid transparent; 
+                        }
+
+                        .wc-spinning-inner {
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 300%;
+                          height: 600%;
+                          animation: wc-spin-border 9.8s linear infinite;
+                          
+                          background: conic-gradient(
+                            from 0deg,
+                            rgba(255, 255, 255, 0.15) 0%,
+                            rgba(255, 255, 255, 0.79) 28%,
+                            rgba(180, 210, 255, 0.86) 33%,
+                            rgba(220, 235, 255, 0.95) 48%,
+                            rgba(255, 255, 255, 1.0) 50%,
+                            rgba(223, 248, 182, 0.95) 52%,
+                            rgba(180, 210, 255, 0.88) 57%,
+                            rgba(255, 255, 255, 0.75) 62%,
+                            rgba(255, 255, 255, 0.15) 100%
+                          );
+                          border-radius: 50%;
+                        }
+
+                          /* --- ANIMACIÓN 2: DESTELLO DIAGONAL MÁS LARGO Y SUAVE --- */
+  @keyframes wc-content-shimmer {
+    0% { transform: translate(-160%, -50%) rotate(48deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { opacity: 1; }
+    70% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+    100% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+  }
+  .wc-shimmer-line2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%; 
+    height: 420%; 
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 20%,
+      rgba(255, 255, 255, 0.18) 50%, 
+      rgba(255, 255, 255, 0.01) 80%,
+      transparent 100%
+    );
+    animation: wc-content-shimmer 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  }
+                      `}
+                          </style>
+
+                          <div className="wc-spinning-container2">
+                            {/* El gradiente cónico gira aquí adentro, siendo recortado perfectamente por el padre */}
+                            <div className="wc-spinning-inner" />
+                          </div>
+                        </>
+                      )}
+
+                    {/* SHIMMER */}
+                    {Platform.OS === 'web' && focusArea === 'game_panel' && gamePanelFocusIndex === 100 + idx && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 1,
+                          right: 1,
+                          bottom: 0,
+                          borderRadius: 8,
+                          zIndex: 5,
+                          overflow: 'hidden',
+                        } as any}
+                        pointerEvents="none"
+                      >
+                        {/* @ts-ignore */}
+                        <div className="wc-shimmer-line2" />
+                      </View>
+                    )}
+                    {/* DEGRADADO NEGRO (al estar enfocadas) */}
+                    {Platform.OS === 'web' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 100%)',
+                          pointerEvents: 'none',
+                          zIndex: 1,
+                          opacity: isMediaFocused ? 1 : 0,
+                          transition: 'opacity 450ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        }}
+                      />
+                    )}
+                    {/* Thumbnail */}
+                    <View style={[styles.newsCardThumbnail, { height: s(281) }]}>
+                      <Image
+                        source={{ uri: item.thumbnail }}
+                        style={{ width: '100%', height: '100%' }}
+                        contentFit="cover"
+                      />
+                      {/* Play badge para trailers */}
+                      {item.type === 'movie' && (
+                        <View style={styles.mediaPlayBadge}>
+                          <Ionicons name="play-circle" size={s(32)} color="rgba(255,255,255,0.92)" />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
+      {/* Steam News row */}
+      {canPlay && !isMediaSection && (
+        <View style={[styles.newsSectionWrapper, { width: windowWidth }]}>
+          <Text style={{ color: '#FFF', fontSize: s(18), fontWeight: '500', marginBottom: s(16), paddingLeft: s(50) }}>Últimas noticias</Text>
+
+          {newsLoading ? (
+            <View style={[styles.newsLoadingRow, { paddingLeft: s(50) }]}>
+              <MaterialCommunityIcons name="loading" size={16} color="rgba(255,255,255,0.3)" />
+              <Text style={styles.newsEmptyText}>Buscando contenido...</Text>
+            </View>
+          ) : steamNews.length === 0 ? (
+            <View style={[styles.newsLoadingRow, { paddingLeft: s(50) }]}>
+              <Ionicons name="newspaper-outline" size={14} color="rgba(255,255,255,0.25)" />
+              <Text style={styles.newsEmptyText}>Sin noticias recientes</Text>
+            </View>
+          ) : (
+            <ScrollView
+              ref={newsScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.newsScrollContent, { paddingLeft: s(50), paddingRight: s(50) }]}
+            >
+              {steamNews.slice(0, 8).map((news, idx) => {
+                const isNewsFocused = focusArea === 'game_panel' && gamePanelFocusIndex === 4 + idx;
+                const fallbackItem = activeItem?.isLastPlayed ? lastPlayedGame : activeItem;
+                return (
+                  <TouchableOpacity
+                    key={news.gid}
+                    style={[styles.newsCard2, { width: s(320) }, isNewsFocused && styles.newsCardFocused]}
+                    activeOpacity={0.8}
+                    onPress={() => { if (news.url) Linking.openURL(news.url); }}
+                  >
+                    {Platform.OS === 'web' &&
+                      focusArea === 'game_panel' &&
+                      gamePanelFocusIndex === 4 + idx && (
+                        <>
+                          <style>
+                            {`
+                          /* --- ANIMACIÓN 1: BORDE GIRATORIO CON BASE VISIBLE --- */
+                        @keyframes wc-spin-border {
+                          0%   { transform: translate(-50%, -50%) rotate(0deg); }
+                          100% { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        .wc-spinning-container2 {
+                          position: absolute;
+                          top: 0px;
+                          left: 0px;
+                          right: 0px;
+                          bottom: 0px;
+                          border-radius: 8px;
+                          z-index: 9999;
+                          overflow: visible !important;
+
+                          /* ─── AQUÍ OCURRE LA MAGIA DE LA MÁSCARA CUADRADA ─── */
+                          /* 1. Definimos dos capas de gradientes básicos como máscaras */
+                          -webkit-mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+                          mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+
+                          /* 2. El primer gradiente se expande hasta el borde (border-box). 
+                                El segundo gradiente se queda solo en el contenido (padding-box) */
+                          -webkit-mask-clip: border-box, padding-box;
+                          mask-clip: border-box, padding-box;
+
+                          /* 3. ¡RESTAR! Le decimos que excluya la capa del padding-box (el centro).
+                                Nota: Webkit usa 'destination-out' y la propiedad estándar usa 'exclude' */
+                          -webkit-mask-composite: destination-out;
+                          mask-composite: exclude;
+
+                          /* 4. El grosor del anillo se define por el "border" del contenedor */
+                          border: 3px solid transparent; 
+                        }
+
+                        .wc-spinning-inner {
+                          position: absolute;
+                          top: 50%;
+                          left: 50%;
+                          width: 300%;
+                          height: 600%;
+                          animation: wc-spin-border 9.8s linear infinite;
+                          
+                          background: conic-gradient(
+                            from 0deg,
+                            rgba(255, 255, 255, 0.15) 0%,
+                            rgba(255, 255, 255, 0.79) 28%,
+                            rgba(180, 210, 255, 0.86) 33%,
+                            rgba(220, 235, 255, 0.95) 48%,
+                            rgba(255, 255, 255, 1.0) 50%,
+                            rgba(223, 248, 182, 0.95) 52%,
+                            rgba(180, 210, 255, 0.88) 57%,
+                            rgba(255, 255, 255, 0.75) 62%,
+                            rgba(255, 255, 255, 0.15) 100%
+                          );
+                          border-radius: 50%;
+                        }
+
+                          /* --- ANIMACIÓN 2: DESTELLO DIAGONAL MÁS LARGO Y SUAVE --- */
+  @keyframes wc-content-shimmer {
+    0% { transform: translate(-160%, -50%) rotate(48deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { opacity: 1; }
+    70% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+    100% { transform: translate(130%, -50%) rotate(48deg); opacity: 0; }
+  }
+  .wc-shimmer-line2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%; 
+    height: 420%; 
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.01) 20%,
+      rgba(255, 255, 255, 0.18) 50%, 
+      rgba(255, 255, 255, 0.01) 80%,
+      transparent 100%
+    );
+    animation: wc-content-shimmer 5s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  }
+                      `}
+                          </style>
+
+                          <div className="wc-spinning-container2">
+                            {/* El gradiente cónico gira aquí adentro, siendo recortado perfectamente por el padre */}
+                            <div className="wc-spinning-inner" />
+                          </div>
+                        </>
+                      )}
+
+                    {/* SHIMMER */}
+                    {Platform.OS === 'web' && focusArea === 'game_panel' && gamePanelFocusIndex === 4 + idx && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 1,
+                          right: 1,
+                          bottom: 0,
+                          borderRadius: 8,
+                          zIndex: 5,
+                          overflow: 'hidden',
+                        } as any}
+                        pointerEvents="none"
+                      >
+                        {/* @ts-ignore */}
+                        <div className="wc-shimmer-line2" />
+                      </View>
+                    )}
+                    {/* DEGRADADO NEGRO (al estar enfocadas) */}
+                    {Platform.OS === 'web' && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.85) 100%)',
+                          pointerEvents: 'none',
+                          zIndex: 1,
+                          opacity: isNewsFocused ? 1 : 0,
+                          transition: 'opacity 450ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        }}
+                      />
+                    )}
+
+                    {/* SHIMMER (al estar enfocadas) */}
+                    {Platform.OS === 'web' && isNewsFocused && (
+                      <div
+                        className="widget-shimmer-line"
+                        style={{
+                          animationDuration: '7s',
+                          opacity: 0.8,
+                        }}
+                      />
+                    )}
+                    <View style={[styles.newsCardThumbnail, { height: s(281) }]}>
+                      <Image
+                        source={
+                          news.image_url
+                            ? { uri: news.image_url }
+                            : (fallbackItem?.backgroundImage ?? fallbackItem?.image ?? require('@/assets/images/FondoDefault2.jpg'))
+                        }
+                        style={{ width: '100%', height: '100%', opacity: news.image_url ? 1 : 0.4 }}
+                        contentFit="cover"
+                      />
+                    </View>
+                    <View style={styles.newsCardContent}>
+                      <Text style={styles.newsCardTitle} numberOfLines={1}>{news.title}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      )}
+    </Animated.View>
+  );
+};
+
+const styles = StyleSheet.create({
+  gameInfoPanel: {
+    paddingLeft: 150,
+    paddingTop: 1,
+    maxWidth: '100%' as any,
+  },
+  gameLogo: {
+    width: 400,
+    height: 220,
+    marginBottom: 15,
+  },
+  gameTitle: {
+    color: '#FFFFFF',
+    fontSize: 38,
+    fontWeight: '300',
+    letterSpacing: -0.5,
+    marginBottom: 10,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  playBtn: {
+    backgroundColor: '#9999991c',
+    paddingHorizontal: 52,
+    paddingVertical: 14,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0,
+    width: 320,
+    height: 65,
+  },
+  playBtnText: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  moreBtn: {
+    backgroundColor: '#9999991c',
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0,
+  },
+  moreBtnText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: -4,
+  },
+  playBtnFocused: {
+    backgroundColor: '#FFFFFF',
+    //outlineStyle: 'solid',
+    //outlineWidth: 2,
+    //outlineColor: '#929292ff',
+    //outlineOffset: 1,
+  } as any,
+  playBtnTextFocused: {
+    color: '#111111',
+  },
+  moreBtnFocused: {
+    backgroundColor: '#FFFFFF',
+    outlineStyle: 'solid',
+    outlineWidth: 2,
+    outlineColor: '#929292ff',
+    outlineOffset: 1,
+  } as any,
+  moreBtnTextFocused: {
+    color: '#111111',
+  },
+  infoCardsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 20,
+    width: '90%',
+  },
+  infoCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgb(10 18 33)',
+    //borderWidth: 1,
+    //borderColor: 'rgba(255,255,255,0.05)',
+    minWidth: 350,
+    justifyContent: 'center',
+    overflow: 'visible',
+    position: 'relative',
+  } as any,
+  infoCardFocused: {
+    //borderColor: 'rgba(255, 255, 255, 0.64)',
+    //borderWidth: 1.5,
+  } as any,
+  newsSectionWrapper: {
+    marginTop: 30,
+    marginLeft: -50,
+  },
+  newsScrollContent: {
+    gap: 16,
+  },
+  newsCard: {
+    width: 500,
+    height: 250,
+    borderRadius: 8,
+    backgroundColor: 'rgba(199, 199, 226, 0.04)',
+    overflow: 'hidden',
+    //borderWidth: 1.5,
+    borderColor: 'transparent',
+    position: 'relative',
+  } as any,
+  newsCard2: {
+    width: 320,
+    borderRadius: 8,
+    backgroundColor: 'rgba(20,20,30,0.4)',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    position: 'relative',
+  } as any,
+  newsCardFocused: {
+    //borderColor: 'rgba(255, 255, 255, 0.49)',
+    //borderWidth: 2,
+    backgroundColor: 'rgba(35,35,45,0.6)',
+  } as any,
+  newsCardThumbnail: {
+    width: '100%',
+    height: 281,
+    backgroundColor: '#333',
+    position: 'relative',
+  },
+  newsCardContent: {
+    padding: 12,
+    zIndex: 2,
+  },
+  newsCardTitle: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  newsLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  newsEmptyText: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  mediaPlayBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    zIndex: 2,
+  },
+});
+
+export default GameInfoPanel;
